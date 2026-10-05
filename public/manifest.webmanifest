@@ -1,0 +1,12 @@
+{
+  "name": "PokéClasseur",
+  "short_name": "PokéClasseur",
+  "description": "Ta collection de cartes Pokémon : séries, classeur, Pokédex, stats et Union Room.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f3f5f8",
+  "theme_color": "#1f2a6b",
+  "lang": "fr",
+  "icons": [{ "src": "icon-180.png", "sizes": "180x180", "type": "image/png" }]
+}
