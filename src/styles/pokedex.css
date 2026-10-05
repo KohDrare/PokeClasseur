@@ -1,0 +1,35 @@
+/* pokédex */
+.regions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding-bottom:60px}
+@media (max-width:720px){.regions{grid-template-columns:1fr}}
+.region{display:flex;align-items:center;gap:12px;background:linear-gradient(100deg,var(--surface) 40%,var(--surface-2));border-radius:var(--r);box-shadow:var(--shadow);padding:0 0 0 18px;min-height:104px;text-decoration:none;overflow:hidden;transition:transform .15s;border:1px solid var(--line)}
+.region:hover{transform:translateY(-2px)}
+.rinfo{flex:1;min-width:0;display:flex;flex-direction:column;gap:12px}
+.rtop{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.rtop>b{font-size:18px;font-weight:800}
+.rtop span{font-variant-numeric:tabular-nums;color:var(--muted);font-size:14px}
+.rtop span b{color:var(--fg);font-size:17px;font-weight:800}
+.rart{display:flex;align-items:flex-end;flex:none;height:104px;padding-right:6px}
+.rart img{height:92px;width:92px;object-fit:contain;margin-left:-26px;filter:drop-shadow(0 4px 6px rgba(0,0,0,.18))}
+.rart img:first-child{margin-left:0}
+@media (max-width:420px){.rart img{height:72px;width:72px;margin-left:-22px}}
+.dexhead{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.mons{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:12px;padding-bottom:60px}
+@media (max-width:480px){.mons{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}}
+.mon{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px 8px 12px;min-width:0;transition:transform .15s}
+.mon:hover{transform:translateY(-2px)}
+.mimg{width:100%;aspect-ratio:1;display:grid;place-items:center;border-radius:50%;background:radial-gradient(circle,var(--surface-2) 58%,transparent 60%)}
+.mimg img{width:88%;height:88%;object-fit:contain;filter:var(--sil);transition:filter .2s}
+.mon.got .mimg img{filter:drop-shadow(0 4px 6px rgba(0,0,0,.15))}
+.mon.got{border-color:color-mix(in srgb,var(--ok) 45%,var(--line))}
+.mno{font:500 11px var(--mono);color:var(--muted)}
+.mname{font-weight:700;font-size:13.5px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mon:not(.got) .mname{color:var(--muted)}
+.mcount{position:absolute;top:8px;right:8px;background:var(--ok);color:#fff;font:700 11px var(--ui);padding:2px 7px;border-radius:999px}
+.monsheet{grid-template-columns:1fr;max-width:880px}
+.monhero{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.monhero img{width:150px;height:150px;object-fit:contain;filter:drop-shadow(0 8px 14px rgba(0,0,0,.2))}
+.monhero h2{margin:2px 0 6px;font-size:30px;font-weight:800}
+.okchip{display:inline-flex;align-items:center;gap:5px;background:var(--ok);color:#fff;border-radius:999px;padding:3px 10px;font-weight:700;font-size:13px}
+.okchip svg{width:13px;height:13px}
+.smallgrid{grid-template-columns:repeat(auto-fill,minmax(118px,1fr));padding-bottom:10px}
+@media (max-width:480px){.smallgrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
