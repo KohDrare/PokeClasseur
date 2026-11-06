@@ -1,3 +1,4 @@
+import { openViewer } from "./viewer.js";
 import { rarity, symHTML } from "../features/rarity.js";
 import { badgeHTML, eur, foilOf, fxHTML, isSpecial, mainVariant, priceOf, rareName, variantLabel, variantsOf } from "../features/variants.js";
 import { $, ICON, esc } from "../lib/core.js";
@@ -72,6 +73,7 @@ export function openCard(card, seq, startV) {
       pv = row.dataset.v; showFoil();
     };
     const h = $("#holo");
+    h.onclick = () => openViewer(c);   // tap the card to see it full screen
     if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
       h.onpointermove = e => { const b = h.getBoundingClientRect(); const x = (e.clientX - b.left) / b.width, y = (e.clientY - b.top) / b.height; h.style.transform = `rotateY(${(x - .5) * 16}deg) rotateX(${(.5 - y) * 16}deg)`; h.style.setProperty("--gx", x * 100 + "%"); h.style.setProperty("--gy", y * 100 + "%"); };
       h.onpointerleave = () => { h.style.transform = ""; h.classList.remove("touching"); };

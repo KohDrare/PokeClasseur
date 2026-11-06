@@ -23,9 +23,10 @@ export function frameInVideo(video, frameEl) {
   return { x: (fr.left - vr.left - ox) / scale, y: (fr.top - vr.top - oy) / scale, w: fr.width / scale, h: fr.height / scale };
 }
 
-/* bottom-left strip of the card (regulation mark, set code, number), a bit wider than needed to forgive the framing */
-export function stripCanvas(src, r, width = 1000) {
-  const sx = r.x, sy = r.y + r.h * 0.86, sw = r.w * 0.62, sh = r.h * 0.135;
+/* bottom strip of the card, full width: recent cards print code and number on the left,
+   older ones (« 98/99 ») on the right; a bit taller than needed to forgive the framing */
+export function stripCanvas(src, r, width = 1500) {
+  const sx = r.x, sy = r.y + r.h * 0.86, sw = r.w, sh = r.h * 0.135;
   const c = document.createElement("canvas");
   c.width = width; c.height = Math.round(width * sh / sw);
   const g = c.getContext("2d", { willReadFrequently: true });

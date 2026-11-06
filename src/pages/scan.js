@@ -1,4 +1,5 @@
 /* Scanner page: point the camera at a card, the app reads its set code and number and adds it to the collection. */
+import { openViewer } from "../components/viewer.js";
 import { PCX } from "../data/pokecardex-map.js";
 import { UPCOMING, scanBase, upcomingVariants } from "../data/set-patches.js";
 import { compact, getJSON, img, loadSeries, peekSet } from "../data/tcgdex.js";
@@ -121,6 +122,7 @@ async function show(others, g) {
       $("#scancount").textContent = added > 0 ? `${added} carte${added > 1 ? "s" : ""} ajoutée${added > 1 ? "s" : ""} pendant ce scan` : "";
       draw();
     });
+    const im = box.querySelector(".scimg img"); if (im) im.onclick = () => openViewer(c);
     box.querySelectorAll("[data-o]").forEach(b => b.onclick = () => show(others.filter((_, i) => i !== +b.dataset.o), others[+b.dataset.o]));
     $("#sc-next").onclick = resume;
   };

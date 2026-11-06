@@ -1,3 +1,4 @@
+import { openViewer } from "../components/viewer.js";
 import { openCard } from "../components/card-modal.js";
 import { PCX } from "../data/pokecardex-map.js";
 import { codeBadge, img, loadSet, logoImg } from "../data/tcgdex.js";
@@ -222,7 +223,12 @@ export function drawBinder(box, list) {
   const bd = box.querySelector(".binder"); let sx = null, sy = 0;
   bd.addEventListener("touchstart", e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
   bd.addEventListener("touchend", e => { if (sx == null) return; const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy; sx = null; if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) go(dx < 0 ? 1 : -1); });
-  box.onclick = e => { const o = e.target.closest("[data-open]"); if (o) openCard(list[+o.dataset.open].c, list.map(x => x.c)); };
+  // in the binder, a card you own opens straight in big; the (i) button there leads to its sheet
+  box.onclick = e => {
+    const o = e.target.closest("[data-open]"); if (!o) return;
+    const c = list[+o.dataset.open].c, seq = list.map(x => x.c);
+    if (o.classList.contains("has") && c.img) openViewer(c, () => openCard(c, seq)); else openCard(c, seq);
+  };
 }
 export function drawList(box, list) {
   const info = S.CUR.data.info;
