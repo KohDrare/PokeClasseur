@@ -96,7 +96,9 @@ async function show(others, g) {
   state("Carte trouvée !", "good");
   const box = $("#scanresult");
   box.innerHTML = `<div class="scancard loading">Recherche de la carte…</div>`;
-  box.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  // the camera view makes room for the card: it shows at the top of the page, nothing to scroll
+  document.querySelector(".scanpage")?.classList.add("found");
+  scrollTo({ top: 0 });
   let c;
   try { c = await findCard(g); } catch { c = null; }
   if (!c) { box.innerHTML = `<div class="scancard"><p class="note">Je n'ai pas trouvé la carte n° ${g.num} dans ${esc(setName(g.setId))}.</p><div class="acts"><button class="pill" id="sc-next">Scanner une autre carte</button></div></div>`; $("#sc-next").onclick = resume; return; }
@@ -127,9 +129,10 @@ async function show(others, g) {
 
 function resume() {
   $("#scanresult").innerHTML = "";
+  document.querySelector(".scanpage")?.classList.remove("found");
   if (!stream) { state("Caméra arrêtée : recharge la page pour la relancer.", "bad"); return; }
   paused = false; state("Cherche le bas de la carte…");
-  scrollTo({ top: 0, behavior: "smooth" });
+  scrollTo({ top: 0 });
   startLoop();
 }
 /* reading loop: one frame at a time, a card is shown once the reading is sure */

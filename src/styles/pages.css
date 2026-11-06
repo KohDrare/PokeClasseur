@@ -156,3 +156,6 @@
   .scvar{text-align:left}
   .scancard .acts{justify-content:center}
 }
+/* card found: the camera is hidden (still on, so "Scanner la suivante" is instant) and the card takes its place */
+.scanpage.found .scanhead,.scanpage.found .scanbox,.scanpage.found .scanbar{display:none}
+.scanpage.found{padding-top:16px}
