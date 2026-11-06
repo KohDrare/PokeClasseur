@@ -101,3 +101,9 @@ h1{font-size:clamp(28px,4vw,44px);line-height:1.05;margin:0 0 4px;font-weight:80
 .loadbar{height:3px;background:var(--surface-2);border-radius:3px;overflow:hidden;margin-bottom:12px}
 .loadbar i{display:block;height:100%;background:var(--navy);width:0;transition:width .2s}
 .note{color:var(--muted);font-size:13.5px}
+/* wide screens: logo left, details right, always side by side (chips wrap inside their column) */
+@media (min-width:900px){
+  .sethero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,540px);gap:28px 56px}
+  .sethero .logo{flex:none}
+  .sethero .meta{max-width:540px}
+}

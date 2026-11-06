@@ -1,3 +1,5 @@
+import { cloud, hasProfile } from "../cloud/session.js";
+import { img } from "../data/tcgdex.js";
 import { UN_DEMO_CARDS } from "../data/union-demo-cards.js";
 import { $, esc } from "../lib/core.js";
 import { LS } from "../lib/storage.js";
@@ -77,6 +79,13 @@ export function unSeed() {
   };
 }
 export let UN = (() => { const d = LS.get(UN_KEY, null); return d && d.v === 1 ? d : unSeed(); })();
+/* with an account, "me" in the Union Room is the real profile (pseudo, avatar, city, bio) */
+export function unSyncMe() {
+  if (!hasProfile()) return;
+  const p = cloud.profile;
+  Object.assign(UN.me, { name: p.name || p.handle, handle: p.handle, avatar: p.avatar || 25, city: p.city || "", bio: p.bio || "", joined: Date.parse(p.created_at) || UN.me.joined });
+  unSave();
+}
 export const unSave = () => { if (!LS.set(UN_KEY, UN)) toast("Mémoire pleine : supprime quelques photos"); };
 export const unUser = id => id === "me" ? UN.me : UN.users[id];
 export const unMeName = () => UN.me.name || "Toi";
@@ -91,7 +100,7 @@ export const unBadge = u => u.verified >= 2 ? `<span class="uvf" title="${u.veri
 export const unName = (u, link = true) => link ? `<a class="uname" href="#/union/u/${u.id}">${esc(u.id === "me" ? unMeName() : u.name)}</a>${unBadge(u)}` : `<span class="uname">${esc(u.id === "me" ? unMeName() : u.name)}</span>${unBadge(u)}`;
 export const unDemoTag = u => u.id !== "me" ? `<span class="demo" title="Profil d'exemple : les vrais dresseurs arriveront quand le serveur sera branché">exemple</span>` : "";
 export function unCardRefFromLocal(c, setName) { return { id: c.id, name: c.name, img: c.img, set: setName || c.setId, n: c.n, r: c.r, p: c.p || 0, dx: c.dx || [] }; }
-export const unCardImg = (c, q = "low") => c && c.img ? `<img src="${c.img}/${q}.webp" alt="${esc(c.name)}" loading="lazy" onerror="cardImgErr(this)">` : `<div class="fallback">${esc(c?.name || "?")}</div>`;
+export const unCardImg = (c, q = "low") => c && c.img ? `<img src="${img(c.img, q)}" alt="${esc(c.name)}" loading="lazy" onerror="cardImgErr(this)">` : `<div class="fallback">${esc(c?.name || "?")}</div>`;
 export const unSetOf = id => id.slice(0, id.lastIndexOf("-"));
 export function unNotify(text, link) { UN.notifs.unshift({ id: "n" + Date.now() + Math.random().toString(36).slice(2, 5), ts: Date.now(), text, link, read: false }); UN.notifs = UN.notifs.slice(0, 60); unSave(); unBellCount(); }
 export function unBellCount() { const b = $("#un-bell em"); const n = UN.notifs.filter(x => !x.read).length; if (b) { b.textContent = n; b.hidden = !n; } }

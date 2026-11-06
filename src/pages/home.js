@@ -1,4 +1,5 @@
 import { PCX } from "../data/pokecardex-map.js";
+import { PROMO_SETS } from "../data/set-patches.js";
 import { codeBadge, getJSON, loadSeries, logoImg, peekSet, pool } from "../data/tcgdex.js";
 import { eur, priceOf } from "../features/variants.js";
 import { $, API, ICON, esc } from "../lib/core.js";
@@ -10,7 +11,7 @@ import { S } from "../state/shared.js";
 
 /* ================= HOME ================= */
 S.SERIES = null;
-export let homeQuery = "", homeMine = false;
+export let homeQuery = "", homeMine = false, homePromo = false;
 export let SETMETA = LS.get("pc-setmeta", {});
 export let metaBusy = false;
 export async function fetchSetMeta() {
@@ -35,12 +36,14 @@ export async function renderHome() {
     <div class="wrap">
       <div class="toolbar">
         <label class="search" for="q-sets">${ICON.search}<input id="q-sets" placeholder="Rechercher une extension" value="${esc(homeQuery)}" autocomplete="off"></label>
+        <button class="toggle ${homePromo ? "on" : ""}" id="promo-only"><span class="rsvg promo" aria-hidden="true"></span> Promos</button>
         <button class="toggle ${homeMine ? "on" : ""}" id="mine">${ICON.check.replace('stroke-width="3.2"','stroke-width="2.4"')} Mes extensions</button>
       </div>
       <div id="series"><div class="empty-state"><b>Chargement des séries…</b>La première ouverture prend quelques secondes.</div></div>
     </div>`;
   renderStats();
   $("#q-sets").oninput = e => { homeQuery = e.target.value; drawSeries(); };
+  $("#promo-only").onclick = e => { homePromo = !homePromo; e.currentTarget.classList.toggle("on", homePromo); drawSeries(); };
   $("#mine").onclick = e => { homeMine = !homeMine; e.currentTarget.classList.toggle("on", homeMine); drawSeries(); };
   try { S.SERIES = S.SERIES || await loadSeries(); drawSeries(); fetchSetMeta(); }
   catch { $("#series").innerHTML = `<div class="empty-state"><b>Impossible de charger les séries</b>Vérifie ta connexion internet puis recharge la page.</div>`; }
@@ -70,19 +73,23 @@ export async function collectionValue() {
 export function drawSeries() {
   const by = ownedBySet();
   const q = homeQuery.trim().toLowerCase();
-  const html = S.SERIES.map(s => {
-    let sets = s.sets.filter(t => (!q || t.name.toLowerCase().includes(q) || s.name.toLowerCase().includes(q) || t.id.toLowerCase() === q || (SETMETA[t.id]?.a || "").toLowerCase() === q) && (!homeMine || by[t.id]));
+  // "Promos": every era's Black Star Promo set in one section, newest first
+  const groups = homePromo ? [{ id: "promos", name: "Cartes promo", sets: S.SERIES.flatMap(s => s.sets.filter(t => PROMO_SETS.has(t.id)).map(t => ({ ...t, serieName: s.name }))) }] : S.SERIES;
+  const html = groups.map(s => {
+    let sets = s.sets.filter(t => (!q || t.name.toLowerCase().includes(q) || (t.serieName || s.name).toLowerCase().includes(q) || t.id.toLowerCase() === q || (SETMETA[t.id]?.a || "").toLowerCase() === q) && (!homeMine || by[t.id]));
     if (!sets.length) return "";
     sets = sets.map((t, i) => [t, i]).sort((x, y) => { const dx = SETMETA[x[0].id]?.d || "", dy = SETMETA[y[0].id]?.d || ""; return dx && dy && dx !== dy ? dy.localeCompare(dx) : x[1] - y[1]; }).map(x => x[0]);
     return `<section class="serie"><h2>${esc(s.name)} <small>${sets.length} extension${sets.length > 1 ? "s" : ""}</small></h2><div class="sets">${sets.map(t => {
-      const o = by[t.id]?.cards || 0, pct = t.total ? Math.round(o / t.total * 100) : 0, code = SETMETA[t.id]?.a;
-      return `<a class="set" href="#/set/${encodeURIComponent(t.id)}" title="${esc(t.name)} · ${t.total} cartes">
+      const total = SETMETA[t.id]?.t || t.total;   // exact count once the set has been opened
+      const o = by[t.id]?.cards || 0, pct = total ? Math.round(o / total * 100) : 0, code = SETMETA[t.id]?.a;
+      return `<a class="set" href="#/set/${encodeURIComponent(t.id)}" title="${esc(t.name)} · ${total} cartes">
         ${PCX[t.id] ? `<span class="badge img">${codeBadge(t.id)}</span>` : code ? `<span class="badge">${esc(code)}</span>` : ""}
-        ${o ? `<span class="own ${o >= t.total ? "full" : ""}">${o}/${t.total}</span>` : ""}
+        ${o ? `<span class="own ${o >= total ? "full" : ""}">${o}/${total}</span>` : ""}
+        ${PROMO_SETS.has(t.id) ? `<span class="promotag"><span class="rsvg promo" aria-hidden="true"></span>${t.serieName ? esc(t.serieName) : "Promo"}</span>` : ""}
         <div class="lg">${logoImg(t.id, t.logo, t.name, t.serie || s.id)}</div>
-        ${o ? `<div class="bar ${o >= t.total ? "full" : ""}"><i style="width:${pct}%"></i></div>` : ""}
+        ${o ? `<div class="bar ${o >= total ? "full" : ""}"><i style="width:${pct}%"></i></div>` : ""}
       </a>`;
     }).join("")}</div></section>`;
   }).join("");
-  $("#series").innerHTML = html || `<div class="empty-state"><b>${homeMine ? "Aucune extension entamée" : "Aucune extension trouvée"}</b>${homeMine ? "Ouvre une extension et coche tes premières cartes." : "Essaie un autre nom."}</div>`;
+  $("#series").innerHTML = html || `<div class="empty-state"><b>${homeMine ? (homePromo ? "Aucune carte promo cochée" : "Aucune extension entamée") : "Aucune extension trouvée"}</b>${homeMine ? "Ouvre une extension et coche tes premières cartes." : "Essaie un autre nom."}</div>`;
 }

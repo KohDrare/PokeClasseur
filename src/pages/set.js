@@ -29,27 +29,31 @@ export async function renderSet(setId) {
     });
     if (S.CUR.setId !== setId) return;
     S.CUR.data = data; S.CUR.loading = 1;
-    if (data.info) { SETMETA[setId] = { a: data.info.abbr || "", d: data.info.date || "" }; LS.set("pc-setmeta", SETMETA); }
+    if (data.info) { SETMETA[setId] = { a: data.info.abbr || "", d: data.info.date || "", t: data.cards.filter(c => !c.linked).length }; LS.set("pc-setmeta", SETMETA); }
     drawSetHead(); drawSetBody();
     if (window.PENDING_CARD) { const c = data.cards.find(x => x.id === window.PENDING_CARD); window.PENDING_CARD = null; if (c) openCard(c, data.cards); }
   } catch {
     $("#sethead").innerHTML = `<a class="crumb" href="#/">${ICON.back} Séries internationales</a><div class="empty-state"><b>Impossible de charger cette extension</b>Vérifie ta connexion puis réessaie.</div>`;
   }
 }
+/* progress text: by card, or by version when "Afficher les versions" is on */
+const progHTML = k => {
+  const byV = PREF.versions, own = byV ? k.vOwn : k.own, tot = byV ? k.vTot : k.total, pct = tot ? Math.round(own / tot * 100) : 0;
+  return `<div class="ring" style="--p:${pct}" data-l="${pct}%"></div><div><div class="t">${byV ? `${k.vOwn} / ${k.vTot} versions` : `${k.own} / ${k.total} cartes`}</div><div class="s">${byV ? `${k.own} / ${k.total} cartes` : `${k.vOwn} / ${k.vTot} versions (reverse compris)`}</div></div>`;
+};
 export function setCounts() {
   const cs = S.CUR.data.cards;
   let own = 0, vOwn = 0, vTot = 0;
-  for (const c of cs) { if (ownedAny(c.id)) own++; for (const v of variantsOf(c)) { vTot++; if (qtyOf(c.id, v)) vOwn++; } }
-  return { own, total: cs.length, vOwn, vTot };
+  for (const c of cs) { if (c.linked) continue; if (ownedAny(c.id)) own++; for (const v of variantsOf(c)) { vTot++; if (qtyOf(c.id, v)) vOwn++; } }
+  return { own, total: cs.filter(c => !c.linked).length, vOwn, vTot };
 }
 export function drawSetHead() {
   const { info } = S.CUR.data, k = setCounts();
-  const pct = k.total ? Math.round(k.own / k.total * 100) : 0;
-  const secret = Math.max(0, info.total - (info.official || info.total));
+  const secret = Math.max(0, info.total - (info.official || info.total) - (info.special || 0));
   $("#sethead").innerHTML = `<a class="crumb" href="#/">${ICON.back} ${esc(info.serie?.name || "Séries")}</a>
     <h1 class="titlecenter">${esc(info.name)}</h1>
     <div class="sethero">
-      <div class="logo">${logoImg(info.id, info.logo, info.name, info.serie?.id, true)}</div>
+      <div class="logo">${info.upcoming && !info.logo ? `<div class="txt uplogo">${esc(info.name)}<small>Bientôt disponible</small></div>` : logoImg(info.id, info.logo, info.name, info.serie?.id, true)}</div>
       <div class="meta">
         <div class="chips">
           ${PCX[info.id] || info.abbr ? `<span class="chip">${codeBadge(info.id, info.abbr)}</span>` : ""}
@@ -59,10 +63,12 @@ export function drawSetHead() {
         <div class="chips">
           <span class="chip">${ICON.cards} ${info.total} cartes</span>
           ${secret ? `<span class="chip">${ICON.star} ${secret} secrètes</span>` : ""}
+          ${info.special ? `<span class="chip">${ICON.star} ${info.special} ${esc(info.specialLabel)}</span>` : ""}
+          ${info.upcoming && info.upcoming < info.total ? `<span class="chip upchip" title="La liste complète arrivera avec la sortie de l'extension">${info.upcoming} cartes révélées</span>` : ""}
+          ${info.promos ? `<button class="chip chipbtn" id="hb-promos" title="Cartes promo vendues avec les produits de cette extension"><span class="rsvg promo" aria-hidden="true"></span> ${info.promos} promo${info.promos > 1 ? "s" : ""}</button>` : ""}
         </div>
         <a class="progress plink" id="prog" href="#/stats/${encodeURIComponent(info.id)}" title="Voir les stats de ta collection">
-          <div class="ring" style="--p:${pct}" data-l="${pct}%"></div>
-          <div><div class="t">${k.own} / ${k.total} cartes</div><div class="s">${k.vOwn} / ${k.vTot} versions (reverse compris)</div></div>
+          ${progHTML(k)}
           <span class="go"><span>Stats</span>${ICON.next}</span>
         </a>
         <div class="herobtns"><button class="pill" id="hb-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/></svg> Checklist</button><button class="pill" id="hb-prod"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg> Produits${(() => { const n = (S.COL.products?.[info.id] || []).reduce((a, p) => a + p.qty, 0); return n ? ` <em class="pcount">${n}</em>` : ""; })()}</button></div>
@@ -74,16 +80,18 @@ export function bindHeroButtons() {
   const c = $("#hb-check"), pr = $("#hb-prod"); if (!c) return;
   c.onclick = () => { PREF.view = "list"; savePref(); S.CUR.page = 0; drawSetBody(); $("#cards").scrollIntoView({ block: "start", behavior: "smooth" }); };
   pr.onclick = () => openProducts(S.CUR.data.info);
+  const pm = $("#hb-promos");
+  if (pm) pm.onclick = () => { PREF.versions = true; savePref(); S.CUR.rar = new Set(["promo|"]); S.CUR.page = 0; drawSetBody(); refreshProgress(); $("#cards").scrollIntoView({ block: "start", behavior: "smooth" }); };
 }
 export function refreshProgress() {
   const p = $("#prog"); if (!p) return;
-  const k = setCounts(), pct = k.total ? Math.round(k.own / k.total * 100) : 0;
-  p.innerHTML = `<div class="ring" style="--p:${pct}" data-l="${pct}%"></div><div><div class="t">${k.own} / ${k.total} cartes</div><div class="s">${k.vOwn} / ${k.vTot} versions (reverse compris)</div></div><span class="go"><span>Stats</span>${ICON.next}</span>`;
+  const k = setCounts();
+  p.innerHTML = `${progHTML(k)}</div><span class="go"><span>Stats</span>${ICON.next}</span>`;
 }
 export function rarityGroups() {
   const m = new Map();
-  for (const c of S.CUR.data.cards) { if (!c.ok) continue; const r = rarity(c.r); const key = r.sym + "|" + r.cls; if (!m.has(key)) m.set(key, { ...r, labels: new Set(), key, n: 0 }); m.get(key).labels.add(c.r || "Sans rareté"); m.get(key).n++; }
-  return [...m.values()].sort((a, b) => a.rank - b.rank);
+  for (const c of S.CUR.data.cards) { if (!c.ok || (c.linked && !PREF.versions)) continue; const r = rarity(c.r); const key = r.sym + "|" + r.cls; if (!m.has(key)) m.set(key, { ...r, labels: new Set(), key, n: 0 }); m.get(key).labels.add(c.r || "Sans rareté"); m.get(key).n++; }
+  return [...m.values()].sort((a, b) => (a.sym === "promo") - (b.sym === "promo") || a.rank - b.rank);   // promo always last
 }
 export function drawSetBody() {
   const body = $("#setbody");
@@ -99,9 +107,9 @@ export function drawSetBody() {
     ${ready ? "" : `<div class="loadbar" id="loadbar"><i style="width:${Math.round(S.CUR.loading * 100)}%"></i></div>`}
     <div class="row2">
       <div class="seg" id="seg-own">
-        <button data-o="all" class="${PREF.own === "all" ? "on" : ""}">Toutes <em>${k.total}</em></button>
-        <button data-o="have" class="${PREF.own === "have" ? "on" : ""}">Possédées <em>${k.own}</em></button>
-        <button data-o="miss" class="${PREF.own === "miss" ? "on" : ""}">Manquantes <em>${k.total - k.own}</em></button>
+        <button data-o="all" class="${PREF.own === "all" ? "on" : ""}">Toutes <em>${segN(k)[0]}</em></button>
+        <button data-o="have" class="${PREF.own === "have" ? "on" : ""}">Possédées <em>${segN(k)[1]}</em></button>
+        <button data-o="miss" class="${PREF.own === "miss" ? "on" : ""}">Manquantes <em>${segN(k)[2]}</em></button>
       </div>
       <div class="seg" id="seg-view">
         <button data-v="grid" class="${PREF.view === "grid" ? "on" : ""}">${ICON.grid} Grille</button>
@@ -114,20 +122,27 @@ export function drawSetBody() {
   $("#rb-have").onclick = () => setOwn(PREF.own === "have" ? "all" : "have");
   body.querySelectorAll(".rbtn[data-r]").forEach(b => b.onclick = () => { const r = b.dataset.r; S.CUR.rar.has(r) ? S.CUR.rar.delete(r) : S.CUR.rar.add(r); b.classList.toggle("on"); S.CUR.page = 0; drawCards(); });
   $("#q-cards").oninput = e => { S.CUR.q = e.target.value; S.CUR.page = 0; drawCards(); };
-  $("#tg-versions").onclick = e => { PREF.versions = !PREF.versions; savePref(); e.currentTarget.classList.toggle("on", PREF.versions); S.CUR.page = 0; drawCards(); };
+  $("#tg-versions").onclick = () => {
+    PREF.versions = !PREF.versions; savePref(); S.CUR.page = 0;
+    if (!PREF.versions) S.CUR.rar.delete("promo|");
+    drawSetBody();   // redraws the rarity buttons too (the promo one only shows with the versions)
+    refreshProgress();
+  };
   $("#seg-own").onclick = e => { const b = e.target.closest("button"); if (b) setOwn(b.dataset.o); };
   $("#seg-view").onclick = e => { const b = e.target.closest("button"); if (!b) return; PREF.view = b.dataset.v; savePref(); S.CUR.page = 0; [...e.currentTarget.children].forEach(x => x.classList.toggle("on", x === b)); drawCards(); if (PREF.view === "binder") $("#cards").scrollIntoView({ block: "start", behavior: "smooth" }); };
   drawCards();
 }
+const segN = k => PREF.versions ? [k.vTot, k.vOwn, k.vTot - k.vOwn] : [k.total, k.own, k.total - k.own];
 export function refreshCounts() {
   const k = setCounts(); const seg = $("#seg-own"); if (!seg) return;
-  const ems = seg.querySelectorAll("em"); ems[0].textContent = k.total; ems[1].textContent = k.own; ems[2].textContent = k.total - k.own;
+  const ems = seg.querySelectorAll("em"), n = segN(k); ems.forEach((e, i) => { e.textContent = n[i]; });
   refreshProgress();
 }
 /* entries = cards (or card×variant when versions shown), after filters */
 export function entries(cardLevel) {
   const q = S.CUR.q.trim().toLowerCase();
   let list = S.CUR.data.cards.filter(c => {
+    if (c.linked && !PREF.versions) return false;   // product promos only with "Afficher les versions"
     if (S.CUR.rar.size) { const r = rarity(c.r); if (!c.ok || !S.CUR.rar.has(r.sym + "|" + r.cls)) return false; }
     if (q && !(c.name.toLowerCase().includes(q) || c.n.toLowerCase() === q || c.n.replace(/^0+/, "") === q.replace(/^0+/, ""))) return false;
     return true;

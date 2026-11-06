@@ -6,16 +6,20 @@ import { sprite } from "../pages/pokedex.js";
 import { unFeed } from "./feed.js";
 import { unListingPage, unMarket } from "./market.js";
 import { unMessages } from "./messages.js";
+import { unCloudProfile, unFindPeople, unLoginInvite, unOnboardCloud, unProfileState } from "./people.js";
 import { unProfile } from "./profile.js";
-import { UI, UN, unAgo, unAvatar, unBellCount, unCard, unCardImg, unName, unSave } from "./store.js";
+import { UI, UN, unAgo, unAvatar, unBellCount, unCard, unCardImg, unName, unSave, unSyncMe } from "./store.js";
+import { cloud, hasProfile } from "../cloud/session.js";
 import { unTrades } from "./trades.js";
 
 /* ---------- shell ---------- */
 export const UN_TABS = [["feed", "Fil", UI.home], ["market", "Marché", UI.tag], ["trades", "Échanges", UI.swap], ["messages", "Messages", UI.mail], ["profile", "Profil", UI.user]];
 export function renderUnion(sub) {
   setNav("union");
+  unSyncMe();
   const parts = (sub || "feed").split("/");
   const tab = parts[0] === "u" ? (parts[1] === "me" ? "profile" : "u") : parts[0] === "listing" ? "market" : parts[0];
+  unLastSub = sub || "feed";
   const unread = UN.convos.reduce((a, c) => a + (c.unread || 0), 0);
   $("#app").innerHTML = `<section class="band unband"><div class="wrap">
       <div class="unhead"><div><div class="eyebrow">Échanger, vendre, partager</div><h1>Union Room</h1></div>
@@ -30,19 +34,45 @@ export function renderUnion(sub) {
   else if (tab === "market") parts[0] === "listing" ? unListingPage(main, parts[1]) : unMarket(main);
   else if (tab === "trades") unTrades(main);
   else if (tab === "messages") unMessages(main, parts[1]);
-  else if (tab === "profile") UN.me.name ? unProfile(main, "me") : unOnboard(main);
-  else if (tab === "u") unProfile(main, parts[1]);
+  else if (tab === "profile") unProfileTab(main);
+  else if (tab === "u") parts[1]?.startsWith("@") ? unCloudProfile(main, decodeURIComponent(parts[1].slice(1)).toLowerCase()) : unProfile(main, parts[1]);
   unSide($("#un-side"), tab);
 }
+/* "Profil" tab: real account profile when the cloud is on, local profile otherwise */
+function unProfileTab(main) {
+  if (!cloud.enabled) { UN.me.name ? unProfile(main, "me") : unOnboard(main); return; }
+  const st = unProfileState();
+  if (st === "wait") main.innerHTML = `<div class="empty-state" data-wait><b>Chargement du profil…</b></div>`;
+  else if (st === "guest") unLoginInvite(main);
+  else if (st === "new") unOnboardCloud(main);
+  else unMyStats().then(s => unCloudProfile(main, cloud.profile.handle, s));
+}
+async function unMyStats() {
+  const { unMyCards } = await import("./picker.js");
+  const { dexCounts } = await import("../pages/pokedex.js");
+  const mine = await unMyCards();
+  return { cards: mine.length, value: mine.reduce((a, c) => a + (c.p || 0), 0), dex: dexCounts().size };
+}
+/* redraw the Union Room when the sign-in state or profile arrives, unless the user is typing in a form */
+let unLastSub = "feed";
+addEventListener("cloud:changed", () => {
+  if (!location.hash.startsWith("#/union")) return;
+  const main = $("#un-main");
+  if (!main) return;
+  if (main.querySelector(".onboard:not(.invite)")) return;   // never wipe a form being filled in
+  renderUnion(unLastSub);
+});
+
 export function unSide(el, tab) {
   const sugg = Object.values(UN.users).filter(u => !UN.follows.includes(u.id) && !UN.blocked.includes(u.id)).slice(0, 3);
   const wantCount = new Map(); Object.values(UN.users).forEach(u => u.want.forEach(id => wantCount.set(id, (wantCount.get(id) || 0) + 1)));
   const hot = [...wantCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([id, n]) => ({ c: unCard(id), n })).filter(x => x.c);
   el.innerHTML = `
-    <div class="ucard demo-note"><b>Version d'essai</b><p>Tes publications, annonces et échanges restent sur cet appareil. Les autres dresseurs sont des <span class="demo">exemples</span> en attendant le serveur.</p></div>
+    <div class="ucard demo-note"><b>Version d'essai</b><p>${cloud.enabled ? `Les profils et les abonnements sont en ligne. Tes publications, annonces et échanges restent encore sur cet appareil, et les dresseurs marqués <span class="demo">exemple</span> sont fictifs.` : `Tes publications, annonces et échanges restent sur cet appareil. Les autres dresseurs sont des <span class="demo">exemples</span> en attendant le serveur.`}</p></div>
     ${sugg.length ? `<div class="ucard"><h3>Dresseurs à suivre</h3>${sugg.map(u => `<div class="urow">${unAvatar(u, 36)}<div class="urow-t"><div>${unName(u)}</div><small>${esc(u.city)} · ${u.trades} échanges</small></div><button class="pill ghost sm" data-follow="${u.id}">Suivre</button></div>`).join("")}</div>` : ""}
     <div class="ucard"><h3>Les plus recherchées</h3>${hot.map(({ c, n }) => `<div class="urow hot" data-card="${c.id}"><span class="hotimg">${unCardImg(c)}</span><div class="urow-t"><div class="ell">${esc(c.name)}</div><small>${esc(c.set)} · ${n} dresseur${n > 1 ? "s" : ""}</small></div><b>${eur(c.p)}</b></div>`).join("")}</div>
     <div class="ucard"><h3>${UI.shield} Échanger en sécurité</h3><ul class="tips"><li>Préfère la remise en main propre dans un lieu public, ou un envoi suivi.</li><li>Regarde la note et le nombre d'échanges du dresseur.</li><li>Garde toute la discussion dans les messages de l'Union Room.</li><li>Ne paie jamais par un moyen sans protection acheteur.</li></ul></div>`;
+  if (cloud.enabled) unFindPeople(el);
   el.querySelectorAll("[data-follow]").forEach(b => b.onclick = () => { unFollow(b.dataset.follow); renderUnion(location.hash.slice(8) || "feed"); });
   el.querySelectorAll(".hot").forEach(r => r.onclick = () => { location.hash = "#/union/market"; setTimeout(() => { const i = $("#mk-q"); if (i) { i.value = unCard(r.dataset.card).name; i.dispatchEvent(new Event("input")); } }, 50); });
 }
@@ -85,4 +115,8 @@ export function unOnboard(main, editing) {
   };
   const c = $("#ob-cancel"); if (c) c.onclick = () => renderUnion("profile");
 }
-export const unNeedProfile = () => { if (UN.me.name) return false; toast("Crée d'abord ton profil"); location.hash = "#/union/profile"; return true; };
+export const unNeedProfile = () => {
+  if (cloud.enabled ? hasProfile() : UN.me.name) return false;
+  toast(cloud.enabled && !cloud.user ? "Connecte-toi pour participer" : "Crée d'abord ton profil");
+  location.hash = "#/union/profile"; return true;
+};

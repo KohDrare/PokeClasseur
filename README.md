@@ -13,6 +13,18 @@ npm run build      # build de production dans dist/
 npm run preview    # sert dist/ en local
 ```
 
+## Comptes et synchro cloud (Supabase)
+
+Optionnel : sans configuration, l'app reste 100 % locale. Pour activer les comptes, suis [docs/SUPABASE.md](docs/SUPABASE.md) (tables SQL dans `supabase/migrations/`, clés dans `.env.local`).
+
+## App installable et hors ligne
+
+`public/sw.js` (service worker) et `public/manifest.webmanifest` rendent le site installable sur téléphone et ordinateur. Le bouton « Installer l'app » est en bas de page.
+
+- Le service worker ne tourne que sur le site construit, pas avec `npm run dev`. Pour le tester en local : `npm run build` puis `npm run preview`, et ouvre http://localhost:4173/.
+- Ce qui est gardé hors ligne : l'app, les images de cartes et logos déjà vus, les réponses de TCGdex. Supabase n'est jamais mis en cache.
+- Pour forcer tout le monde à repartir de caches neufs, change `const V = "v1"` dans `public/sw.js`.
+
 ## Déploiement
 
 Chaque push sur `main` lance `.github/workflows/deploy.yml` : tests → build → publication sur GitHub Pages.
@@ -49,9 +61,17 @@ src/
     card-modal.js          fiche d'une carte
   pages/
     home.js  set.js  set-stats.js  collection.js  pokedex.js
+  cloud/
+    config.js              lit les clés Supabase (.env.local) ; tout le reste n'est chargé que si elles existent
+    client.js              client Supabase (connexion par lien e-mail ou code)
+    mapping.js             conversions collection ⇄ lignes de la base, fusion, différences (testées)
+    sync.js                synchro : fusion à la connexion, envoi des changements ensuite
+    account.js             bouton « Mon compte » et fenêtre de connexion
   union/
     store.js               données de l'Union Room (locales pour l'instant) + utilitaires
     shell.js picker.js feed.js market.js trades.js messages.js profile.js
+supabase/migrations/       schéma SQL (tables + règles de sécurité)
+docs/                      guides (Supabase…)
 tests/                     tests Vitest
 ```
 

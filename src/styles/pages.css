@@ -71,3 +71,47 @@
 .syncsheet .acts{display:flex;flex-wrap:wrap;gap:8px}
 .confirm{background:color-mix(in srgb,var(--red) 12%,var(--surface));border-radius:12px;padding:12px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:700;z-index:200;box-shadow:var(--shadow)}
+
+/* account */
+#btn-account{position:relative}
+#btn-account::after{content:"";position:absolute;right:6px;bottom:6px;width:9px;height:9px;border-radius:50%;border:2px solid var(--surface);background:var(--muted);display:none}
+#btn-account[data-state="ok"]::after{display:block;background:var(--ok)}
+#btn-account[data-state="syncing"]::after{display:block;background:var(--orange)}
+#btn-account[data-state="error"]::after,#btn-account[data-state="offline"]::after{display:block;background:var(--red)}
+.acc .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.acc-form{display:flex;flex-direction:column;gap:8px;margin-top:16px}
+.acc-form label{font-weight:700;font-size:13px;color:var(--muted)}
+.acc-form input{height:46px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--fg);padding:0 14px;font-size:16px}
+.acc-form .pill{align-self:flex-start;margin-top:4px}
+.acc-status{display:flex;gap:12px;align-items:flex-start;background:var(--surface-2);border-radius:12px;padding:12px 14px;margin:14px 0}
+.acc-status i{width:12px;height:12px;border-radius:50%;background:var(--muted);margin-top:4px;flex:none}
+.acc-status.st-ok i{background:var(--ok)}.acc-status.st-syncing i{background:var(--orange)}.acc-status.st-error i,.acc-status.st-offline i{background:var(--red)}
+.acc-status small{display:block;color:var(--muted);font-size:12.5px}
+.note.err,.acc-status .err{color:var(--red)}
+
+/* footer: install button, "unofficial" notice, credits */
+.site-foot{margin-top:48px;padding:24px 0 calc(28px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);color:var(--muted);font-size:12.5px;line-height:1.55}
+.site-foot .wrap{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;max-width:760px}
+.site-foot p{margin:0}
+.site-foot a{color:inherit;text-decoration:underline;text-underline-offset:2px}
+.site-foot .pill{display:inline-flex;align-items:center;gap:8px;margin-bottom:10px}
+.site-foot .pill svg{width:18px;height:18px}
+.steps{margin:14px 0 4px;padding-left:22px;display:flex;flex-direction:column;gap:8px;line-height:1.5}
+
+/* account: avatar on the header button + profile shortcut in the window */
+#btn-account .acc-av{width:28px;height:28px;object-fit:contain;border-radius:50%;background:var(--surface-2)}
+.acc-prof{display:flex;align-items:center;gap:12px;margin:12px 0 4px;padding:10px 12px;border-radius:12px;background:var(--surface-2);color:inherit;text-decoration:none}
+.acc-prof:hover{background:var(--navy-soft)}
+.acc-prof img{width:44px;height:44px;object-fit:contain;border-radius:50%;background:var(--surface)}
+.acc-prof small{display:block;color:var(--muted);font-size:12.5px}
+.acc-prof.new{border:1.5px dashed var(--line);background:none}
+/* promo sets: small "PROMO" mark on the tile, star in the filter button */
+.set .promotag{position:absolute;left:10px;bottom:15px;display:inline-flex;align-items:center;gap:5px;font:700 10.5px/1 var(--ui);color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.set .promotag .rsvg{width:14px;height:14px;color:var(--fg)}
+.toggle .rsvg.promo{width:20px;height:20px}
+.chipbtn{border:0;font:inherit;font-weight:600;font-size:14.5px;color:inherit;cursor:pointer}
+.chipbtn:hover{background:var(--navy-soft)}
+.chip .rsvg.promo{width:18px;height:18px}
+.chip.upchip{background:var(--navy-soft);color:var(--navy)}
+.uplogo{font:800 clamp(30px,4vw,46px)/1.05 var(--ui);text-align:center;letter-spacing:-.01em}
+.uplogo small{display:block;font-size:14px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:8px}

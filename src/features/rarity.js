@@ -4,6 +4,7 @@ import { esc } from "../lib/core.js";
 /* Rarity marks drawn as SVG, shaped like the symbols printed on the cards (and used by Pokécardex). */
 export const RAR = [
   [/^commune$/, "circle", 1],
+  [/^promo$/, "promo", 3.8],
   [/^peu commune$/, "diamond", 2],
   [/^rare$/, "star-o", 3],
   [/^(holo rare|rare holo)$/, "star", 4],
@@ -33,6 +34,7 @@ export const RCOL = { gold: "#f2b01e", silver: "#a3a9b5", teal: "#25b3b0", pink:
 export const SVG_CACHE = {};
 export function symSVG(kind) {
   if (SVG_CACHE[kind]) return SVG_CACHE[kind];
+  if (kind === "promo") return SVG_CACHE[kind] = `<span class="rsvg promo" aria-hidden="true"></span>`;
   const [shape, tone] = kind.split("-");
   const col = RCOL[tone] || "currentColor";
   let body = "";

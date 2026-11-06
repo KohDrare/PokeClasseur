@@ -11,7 +11,9 @@ import "./styles/union.css";
 import "./state/prefs.js";        // applies the theme + theme button
 import "./features/variants.js";  // pointer tracking for the card shine
 import "./data/tcgdex.js";        // image / logo fallback handlers on window
-import "./features/sync.js";      // backup / sync button
+import "./features/sync.js";      // backup / sync button (code or file)
+import "./cloud/account.js";      // account + cloud sync (only when Supabase is configured)
+import "./pwa.js";                // offline service worker + "Installer l'app"
 
 import { $ } from "./lib/core.js";
 import { LS } from "./lib/storage.js";
@@ -22,6 +24,7 @@ import { PREF } from "./state/prefs.js";
 import { S } from "./state/shared.js";
 
 addEventListener("hashchange", route);
+addEventListener("collection:replaced", route);   // cloud sync merged a new collection in
 // another tab changed the collection: reload it
 addEventListener("storage", e => { if (e.key === COL_KEY) S.COL = LS.get(COL_KEY, S.COL); });
 // the binder shows 1 or 2 pages depending on width

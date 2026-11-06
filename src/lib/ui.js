@@ -8,7 +8,7 @@ export function toast(msg) {
   setTimeout(() => t.remove(), 2200);
 }
 export const fmtDate = d => d ? new Date(d + "T12:00:00").toLocaleDateString("fr-BE", { day: "numeric", month: "long", year: "numeric" }) : "";
-export const numLabel = (c, info) => /^\d+$/.test(c.n) && info.official ? `${c.n}/${String(info.official).padStart(c.n.length, "0")}` : c.n;
+export const numLabel = (c, info) => c.linked ? `${c.setId.toUpperCase()} ${c.n}` : /^\d+$/.test(c.n) && info.official ? `${c.n}/${String(info.official).padStart(c.n.length, "0")}` : c.n;
 export function imgTag(c, q, cls = "") {
   return c.img ? `<img class="${cls}" src="${img(c.img, q)}" alt="${esc(c.name)}" loading="lazy" decoding="async" onerror="cardImgErr(this)">`
     : `<div class="fallback">${esc(c.name)}</div>`;

@@ -1,5 +1,6 @@
 import { DEX_NAMES } from "../data/dex-names.js";
-import { getJSON, loadSeries, peekSet, pool } from "../data/tcgdex.js";
+import { scanBase } from "../data/set-patches.js";
+import { getJSON, img, loadSeries, peekSet, pool } from "../data/tcgdex.js";
 import { $, API, ICON, esc } from "../lib/core.js";
 import { LS } from "../lib/storage.js";
 import { setNav } from "../lib/ui.js";
@@ -141,9 +142,10 @@ export async function openMon(n) {
   if (!$("#moncards")) return;
   if (!S.SERIES) { try { S.SERIES = await loadSeries(); } catch {} }
   if (!$("#moncards")) return;
-  const mine = all.filter(c => ownedAny(c.id)), others = all.filter(c => !ownedAny(c.id) && c.image);
+  const pic = c => c.image ? `${c.image}/low.webp` : img(scanBase(c.id.slice(0, c.id.lastIndexOf("-")), c.localId));
+  const mine = all.filter(c => ownedAny(c.id)), others = all.filter(c => !ownedAny(c.id) && pic(c));
   $("#monstatus").innerHTML = mine.length ? `<span class="okchip">${ICON.check} Attrapé · ${mine.length} carte${mine.length > 1 ? "s" : ""}</span> sur ${all.length} existantes` : `Pas encore dans ta collection · ${all.length} cartes existantes`;
-  const tile = (c, own) => `<button class="tile ${own ? "owned" : "missing"}" data-card="${esc(c.id)}" style="border:0;background:none;padding:0;text-align:left"><span class="cardimg">${c.image ? `<img src="${c.image}/low.webp" alt="${esc(c.name)}" loading="lazy">` : `<div class="fallback">${esc(c.name)}</div>`}</span><span class="cap"><span class="nm">${esc(setNameOf(c.id))}</span></span></button>`;
+  const tile = (c, own) => `<button class="tile ${own ? "owned" : "missing"}" data-card="${esc(c.id)}" style="border:0;background:none;padding:0;text-align:left"><span class="cardimg">${pic(c) ? `<img src="${pic(c)}" alt="${esc(c.name)}" loading="lazy" onerror="cardImgErr(this)">` : `<div class="fallback">${esc(c.name)}</div>`}</span><span class="cap"><span class="nm">${esc(setNameOf(c.id))}</span></span></button>`;
   $("#moncards").innerHTML = (mine.length ? `<div class="h3">Tes cartes (${mine.length})</div><div class="grid smallgrid">${mine.map(c => tile(c, 1)).join("")}</div>` : "")
     + (others.length ? `<div class="h3">${mine.length ? "Celles qui te manquent" : "Toutes ses cartes"} (${others.length})</div><div class="grid smallgrid">${others.slice().reverse().map(c => tile(c, 0)).join("")}</div>` : "")
     + `<p class="note">Clique sur une carte pour l'ouvrir dans son extension.</p>`;

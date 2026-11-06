@@ -26,10 +26,11 @@ export function openCard(card, seq, startV) {
       <div class="big"><div class="holo" id="holo">${imgTag(c, "high")}${fxHTML(foilOf(c, pv))}${badgeHTML(c, pv)}<div class="glare"></div></div></div>
       <div class="info">
         <h2>${esc(c.name)}</h2>
-        <div class="line"><span>${esc(numLabel(c, info))}</span>·<span>${esc(info.name || c._setName || "")}</span></div>
+        <div class="line"><span>${esc(numLabel(c, info))}</span>·<span>${esc(c.linked ? info.promoSet || "Promo" : info.name || c._setName || "")}</span></div>
         <dl class="facts">
           <dt>Rareté</dt><dd>${c.ok ? `${symHTML(c.r)} ${esc(isSpecial(c) ? rareName(c) : r.label)}` : "…"}</dd>
-          ${c.cat ? `<dt>Catégorie</dt><dd>${esc(c.cat)}${c.st ? " · " + esc(c.st) : ""}</dd>` : ""}
+          ${c.prod ? `<dt>Obtenue avec</dt><dd>${esc(c.prod)}</dd>` : ""}
+                    ${c.cat ? `<dt>Catégorie</dt><dd>${esc(c.cat)}${c.st ? " · " + esc(c.st) : ""}</dd>` : ""}
           ${c.hp ? `<dt>PV</dt><dd>${esc(c.hp)}${c.t ? " · " + esc(c.t) : ""}</dd>` : ""}
           ${c.il ? `<dt>Illustrateur</dt><dd>${esc(c.il)}</dd>` : ""}
           ${c.rm ? `<dt>Marque</dt><dd>${esc(c.rm)}</dd>` : ""}

@@ -4,3 +4,6 @@ dist
 *.log
 .env*
 !.env.example
+
+# public build settings for the live site (publishable key only)
+!.env.production

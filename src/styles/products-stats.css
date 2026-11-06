@@ -101,3 +101,5 @@ a.progress.plink:hover{transform:translateY(-2px);box-shadow:0 12px 26px rgba(20
 .pick .pvis{width:100%}
 .slink{text-decoration:none}
 .slink:hover{color:var(--navy)}
+.stmode{margin:0 0 12px}
+@media (max-width:780px){.stmode{align-self:center}}
