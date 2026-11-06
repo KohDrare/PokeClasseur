@@ -7,3 +7,5 @@ dist
 
 # public build settings for the live site (publishable key only)
 !.env.production
+# copied from node_modules by scripts/copy-ocr.mjs
+public/ocr

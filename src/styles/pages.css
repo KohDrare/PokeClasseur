@@ -115,3 +115,44 @@
 .chip.upchip{background:var(--navy-soft);color:var(--navy)}
 .uplogo{font:800 clamp(30px,4vw,46px)/1.05 var(--ui);text-align:center;letter-spacing:-.01em}
 .uplogo small{display:block;font-size:14px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:8px}
+
+/* ---------- scanner ---------- */
+.scanpage{max-width:880px;padding-top:22px;padding-bottom:40px}
+.scanhead h1{margin:0 0 6px;font-size:clamp(24px,4vw,32px)}
+.scanhead .note{margin:0 0 16px}
+.scanbox{position:relative;width:100%;height:min(68vh,640px);border-radius:18px;overflow:hidden;background:#0b0e1a}
+.scanbox video{width:100%;height:100%;object-fit:cover;display:block}
+/* the card outline (63 × 88 mm); everything outside is dimmed */
+.scanframe{position:absolute;left:50%;top:50%;height:86%;aspect-ratio:63/88;max-width:86%;transform:translate(-50%,-50%);border:3px solid #fff;border-radius:16px;box-shadow:0 0 0 2000px rgba(5,8,20,.55)}
+.scanframe .zone{position:absolute;left:0;bottom:0;width:62%;height:14%;border:2px dashed #ffd84d;border-radius:0 8px 0 12px}
+.scanstate{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);max-width:calc(100% - 28px);padding:8px 14px;border-radius:999px;background:rgba(10,14,30,.8);color:#fff;font-weight:600;font-size:14px;text-align:center}
+.scanstate.good{background:#1f9d55}.scanstate.bad{background:#b3261e;border-radius:14px}
+.scanbox .torch{position:absolute;right:12px;top:12px;background:rgba(10,14,30,.6);color:#fff}
+.scanbox .torch.on{background:#ffd84d;color:#1a1a1a}
+.scanbox .torch svg{width:20px;height:20px}
+.scanbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:14px 0}
+.scanbar .manual{display:flex;gap:8px;flex:1;min-width:260px}
+.scanbar .manual input{flex:1;min-width:0;height:44px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--fg);padding:0 14px;font:inherit;font-size:15px}
+.scancard{display:flex;gap:20px;padding:18px;border-radius:18px;background:var(--surface);border:1px solid var(--line)}
+.scancard.loading{justify-content:center;color:var(--muted);font-weight:600}
+.scancard .scimg{flex:none;width:min(42%,240px);position:relative}
+.scancard .scimg img,.scancard .scimg .fallback{width:100%;aspect-ratio:63/88;border-radius:12px;object-fit:cover;display:flex;align-items:center;justify-content:center}
+.scancard .scinfo{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
+.scancard h2{margin:0;font-size:24px}
+.scancard .sym svg,.scancard .sym .rsvg{width:16px;height:16px;vertical-align:-3px}
+.scvars{display:flex;flex-direction:column;gap:8px;margin:6px 0}
+.scvar{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;background:var(--surface-2)}
+.scvar span{flex:1;font-weight:600}
+.scvar b{min-width:22px;text-align:center}
+.scvar .iconbtn{width:34px;height:34px;font-size:20px;line-height:1}
+.scancard .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.scancard .others summary{cursor:pointer;color:var(--muted);font-weight:600;margin-top:4px}
+.scancard .others .linkbtn{display:block;margin:6px 0 0;border:0;background:none;color:var(--navy);font:inherit;font-weight:600;cursor:pointer;padding:0;text-align:left}
+@media (max-width:620px){
+  .scanbox{height:62vh;border-radius:14px}
+  .scancard{flex-direction:column;align-items:center;text-align:center}
+  .scancard .scimg{width:62%}
+  .scancard .scinfo{width:100%}
+  .scvar{text-align:left}
+  .scancard .acts{justify-content:center}
+}

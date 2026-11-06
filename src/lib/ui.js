@@ -13,4 +13,4 @@ export function imgTag(c, q, cls = "") {
   return c.img ? `<img class="${cls}" src="${img(c.img, q)}" alt="${esc(c.name)}" loading="lazy" decoding="async" onerror="cardImgErr(this)">`
     : `<div class="fallback">${esc(c.name)}</div>`;
 }
-export function setNav(which) { $("#nav-series").classList.toggle("on", which === "series"); $("#nav-col").classList.toggle("on", which === "col"); $("#nav-dex").classList.toggle("on", which === "dex"); $("#nav-union").classList.toggle("on", which === "union"); }
+export function setNav(which) { $("#nav-series").classList.toggle("on", which === "series"); $("#nav-col").classList.toggle("on", which === "col"); $("#nav-dex").classList.toggle("on", which === "dex"); $("#nav-union").classList.toggle("on", which === "union"); $("#nav-scan")?.classList.toggle("on", which === "scan"); }

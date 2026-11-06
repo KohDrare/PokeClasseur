@@ -5,7 +5,9 @@
   "type": "module",
   "description": "Collection de cartes Pokémon : séries, classeur, Pokédex, stats et Union Room.",
   "scripts": {
+    "predev": "node scripts/copy-ocr.mjs",
     "dev": "vite",
+    "prebuild": "node scripts/copy-ocr.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
@@ -22,6 +24,8 @@
     "vitest": "^2.1.4"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.117.2"
+    "@supabase/supabase-js": "^2.117.2",
+    "@tesseract.js-data/eng": "^1.0.0",
+    "tesseract.js": "^7.0.0"
   }
 }
