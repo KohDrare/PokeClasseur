@@ -9,6 +9,7 @@ import { dexCounts } from "./pokedex.js";
 import { isFav, ownedAny, ownedBySet } from "../state/collection.js";
 import { S } from "../state/shared.js";
 import { UN } from "../union/store.js";
+import { drawBinderShelf } from "../features/mybinders.js";
 
 /* ================= COLLECTION =================
    Top: the value of the collection with its curve (one point per day, kept on this device),
@@ -54,6 +55,7 @@ export async function renderCollection() {
   app.innerHTML = `<section class="band colband"><div class="wrap">
       <h1>Ma collection</h1>
       <div class="colhero" id="colhero"><div class="valcard"><div class="note">Calcul de la valeur…</div></div></div>
+      <div class="colshelf" id="colshelf" hidden></div>
     </div></section>
     <div class="wrap" id="colall">
       <div class="toolbar coltools">
@@ -87,6 +89,9 @@ export async function renderCollection() {
     });
   }
   drawHero(items);
+  const shelf = $("#colshelf"); shelf.hidden = false;
+  const refreshShelf = () => drawBinderShelf(shelf, items, refreshShelf);
+  refreshShelf();
   drawSortLabel();
   $("#q-col").oninput = e => { query = e.target.value; drawBody(items); };
   $("#col-sort").onclick = () => openSort(items);

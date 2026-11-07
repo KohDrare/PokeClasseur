@@ -231,3 +231,10 @@ html.m #col-sort span{display:none}
 html.m .sortsheet{padding:24px 16px calc(100px + env(safe-area-inset-bottom,0px))}
 html.m .sortclose{bottom:calc(18px + env(safe-area-inset-bottom,0px))}
 html.m .sortopt{font-size:16.5px}
+html.m .colshelf{padding:16px;border-radius:20px}
+html.m .shelf{margin:0 -16px;padding:4px 16px 6px;scroll-padding-inline:16px}
+html.m .btile{flex-basis:140px}
+html.m .bcover{width:140px;height:178px}
+html.m .beditor{max-height:100%;height:calc(100% - 10px)}
+html.m .be-grid{grid-template-columns:repeat(4,minmax(0,1fr));max-height:none}
+html.m .be-foot{bottom:calc(-18px - env(safe-area-inset-bottom,0px));padding-bottom:calc(6px + env(safe-area-inset-bottom,0px))}

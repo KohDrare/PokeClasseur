@@ -3,6 +3,7 @@ import { openCard } from "../components/card-modal.js";
 import { PCX } from "../data/pokecardex-map.js";
 import { codeBadge, img, loadSet, logoImg } from "../data/tcgdex.js";
 import { openProducts } from "../features/products.js";
+import { openBinderView, saveSetBinderPrefs, setBinderPrefs } from "../features/binderview.js";
 import { rarity, symHTML, symSVG } from "../features/rarity.js";
 import { VARIANT_LABEL, eur, foilOf, fxHTML, mainVariant, priceOf, variantShort, variantsOf } from "../features/variants.js";
 import { $, ICON, esc } from "../lib/core.js";
@@ -140,9 +141,21 @@ export function drawSetBody() {
   $("#seg-view").onclick = e => { const b = e.target.closest("button"); if (!b) return; PREF.view = b.dataset.v; savePref(); S.CUR.page = 0; [...e.currentTarget.children].forEach(x => x.classList.toggle("on", x === b)); drawCards(); if (PREF.view === "binder") $("#cards").scrollIntoView({ block: "start", behavior: "smooth" }); };
   $("#mb-info").onclick = () => mobSheet("info");
   $("#mb-filt").onclick = () => mobSheet("filt");
-  $("#mb-view").onclick = e => { const b = e.target.closest("button"); if (b) $(`#seg-view [data-v="${b.dataset.v}"]`).click(); };
+  $("#mb-view").onclick = e => { const b = e.target.closest("button"); if (!b) return; if (b.dataset.v === "binder") return openSetBinder(); $(`#seg-view [data-v="${b.dataset.v}"]`).click(); };
   drawCards();
   if (S.CUR.msheet) mobSheet(S.CUR.msheet);   // a redraw while a sheet is open: move the fresh controls in
+}
+
+/* ---- phone: the binder opens full screen, only the cards on a colour of your choice ---- */
+const PHONE = () => document.documentElement.classList.contains("m");
+export function openSetBinder() {
+  const info = S.CUR.data.info, list = entries(true), seq = list.map(x => x.c);
+  const p = setBinderPrefs();
+  openBinderView({
+    title: info.name, color: p.color, mode: p.mode, save: saveSetBinderPrefs,
+    slots: list.map(({ c }) => ({ c, owned: ownedAny(c.id), label: numLabel(c, info) })),
+    onOpen: (s) => { if (s.owned && s.c.img) openViewer(s.c, () => openCard(s.c, seq)); else openCard(s.c, seq); }
+  });
 }
 
 /* ---- phone: set infos and filters live in bottom sheets, the page shows the cards ---- */
@@ -223,13 +236,13 @@ export function entries(cardLevel) {
 export function drawCards() {
   const box = $("#cards"); if (!box) return;
   mobCounts();
-  document.querySelectorAll("#mb-view button").forEach(b => b.classList.toggle("on", b.dataset.v === PREF.view));
+  document.querySelectorAll("#mb-view button").forEach(b => b.classList.toggle("on", b.dataset.v === (PREF.view === "binder" && PHONE() ? "grid" : PREF.view)));
   const list = entries();
   if (!list.length) {
     box.innerHTML = `<div class="empty-state"><b>${PREF.own === "have" ? "Aucune carte cochée ici" : PREF.own === "miss" ? "Rien ne manque, bravo !" : "Aucune carte"}</b>${PREF.own === "have" ? "Coche le rond en haut à droite d'une carte pour l'ajouter à ta collection." : "Change les filtres pour voir d'autres cartes."}</div>`;
     return;
   }
-  if (PREF.view === "binder") return drawBinder(box, entries(true));
+  if (PREF.view === "binder" && !PHONE()) return drawBinder(box, entries(true));   // phones: full-screen binder instead
   if (PREF.view === "list") return drawList(box, list);
   const info = S.CUR.data.info;
   box.innerHTML = `<div class="grid">${list.map(({ c, v }, i) => {
