@@ -390,3 +390,9 @@
 .sortlang button{flex:1;justify-content:center}
 .scanset{display:flex;align-items:center;gap:10px;font-weight:700;font-size:14px;color:var(--muted);margin-bottom:8px;width:100%}
 .scanset select{flex:1;min-width:0;height:42px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:0 10px;font:inherit;font-size:15px}
+.scaninfo{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:13px;color:var(--muted);margin:-4px 0 10px}
+.scaninfo b{color:var(--fg);font-weight:700}
+.scaninfo span{padding:3px 9px;border-radius:999px;background:var(--surface-2);font-weight:600}
+.scaninfo span.ok{background:color-mix(in srgb,var(--ok) 18%,var(--surface-2));color:var(--fg)}
+.scanver{text-align:center;font-size:12px;margin-top:18px}
+.scanpage.found .scaninfo{display:none}

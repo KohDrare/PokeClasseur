@@ -1,3 +1,4 @@
+/* global __BUILD__ */
 /* Scanner page: point the camera at a card, the app reads its set code and number and adds it to the collection. */
 import { openViewer } from "../components/viewer.js";
 import { PCX } from "../data/pokecardex-map.js";
@@ -71,7 +72,9 @@ export async function renderScan() {
       <form class="manual" id="scanmanual"><input id="scanq" placeholder="Ou tape le code et le numéro : DLR 084" autocomplete="off" autocapitalize="characters"><button class="pill">Chercher</button></form>
       <span class="note" id="scancount"></span>
     </div>
+    <div class="scaninfo" id="scaninfo"></div>
     <div id="scanresult"></div>
+    <p class="note scanver">Version du ${new Date(__BUILD__).toLocaleString("fr-BE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
   </div>`;
   $("#scanmanual").onsubmit = e => { e.preventDefault(); const t = $("#scanq").value.trim(); if (t) lookup(t, true); };
 
@@ -103,7 +106,7 @@ function fillSetPicker() {
   const cur = LS.get(SETKEY, "auto");
   sel.innerHTML = `<option value="auto">Automatique</option>` + (S.SERIES || []).map(se => `<optgroup label="${esc(se.name)}">${[...se.sets].reverse().map(t => `<option value="${esc(t.id)}" ${t.id === cur ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</optgroup>`).join("");
   sel.value = [...sel.options].some(o => o.value === cur) ? cur : "auto";
-  sel.onchange = () => { LS.set(SETKEY, sel.value); if (sel.value !== "auto") prepare([sel.value]); };
+  sel.onchange = () => { LS.set(SETKEY, sel.value); prepare(candidateSets()); showPictureState(); };
 }
 function newestSet() {
   const all = (S.SERIES || []).flatMap(se => se.sets).filter(t => (SETMETA[t.id]?.d || "") <= new Date().toISOString().slice(0, 10));
@@ -116,24 +119,37 @@ function candidateSets() {
   return [...new Set(ids.filter(Boolean))].slice(0, 4);
 }
 const ready = new Map();   // setId → prints
-async function prepare(ids) {
-  const { setPrints } = await import("../scan/imgmatch.js");
-  for (const id of ids) {
-    if (ready.has(id)) continue;
+const progress = new Map();   // setId → % while preparing, or "err"
+function showPictureState() {
+  const el = $("#scaninfo"); if (!el) return;
+  const ids = candidateSets();
+  el.innerHTML = ids.length ? `<b>Reconnaissance par l'image</b> ${ids.map(id => {
+    const p = ready.has(id) ? (ready.get(id).length ? "✓" : "indisponible") : progress.get(id) === "err" ? "indisponible" : `${progress.get(id) || 0} %`;
+    return `<span class="${ready.get(id)?.length ? "ok" : ""}">${esc(setName(id))} ${p}</span>`;
+  }).join("")}` : `<b>Reconnaissance par l'image</b> <span>choisis l'extension ci-dessus</span>`;
+}
+function prepare(ids) {
+  // every extension at the same time: the one you need is never stuck behind another
+  return Promise.all(ids.map(async id => {
+    if (ready.has(id) || progress.has(id)) return;
+    progress.set(id, 0); showPictureState();
     try {
-      const pr = await setPrints(id, (k, n) => { if (k % 10 === 0 && !paused && !ready.size) state(`Préparation de ${setName(id)}… ${Math.round(k / n * 100)} %`); });
-      ready.set(id, pr);
-    } catch { /* offline: the text reader still works */ }
-  }
+      const { setPrints } = await import("../scan/imgmatch.js");
+      const pr = await setPrints(id, (k, n) => { const v = Math.round(k / n * 100); if (v !== progress.get(id)) { progress.set(id, v); if (v % 5 === 0) showPictureState(); } });
+      ready.set(id, pr); progress.delete(id);
+    } catch { progress.set(id, "err"); }
+    showPictureState();
+  }));
 }
 /* picture loop: several times a second, much faster than reading the text */
 function startPictureLoop() {
   const video = $("#scanvid");
-  let last = null, streak = 0;
+  let last = null, streak = 0, lastIds = "";
   const tick = async () => {
     if (paused || !stream) return;
     try {
       const ids = candidateSets();
+      if (ids.join() !== lastIds) { lastIds = ids.join(); showPictureState(); }
       prepare(ids);
       const sets = ids.filter(id => ready.has(id)).map(id => ({ setId: id, prints: ready.get(id) }));
       if (sets.length && video?.videoWidth) {
