@@ -1,12 +1,13 @@
 import { openCard } from "../components/card-modal.js";
 import { loadSet, logoImg, peekSet } from "../data/tcgdex.js";
-import { rarity, symHTML } from "../features/rarity.js";
+import { symHTML } from "../features/rarity.js";
 import { eur, foilOf, fxHTML, priceOf } from "../features/variants.js";
 import { $, ICON, esc } from "../lib/core.js";
 import { LS } from "../lib/storage.js";
 import { imgTag, numLabel, setNav } from "../lib/ui.js";
 import { dexCounts } from "./pokedex.js";
 import { isFav, ownedAny, ownedBySet } from "../state/collection.js";
+import { SORTS, sortItems } from "../features/colsort.js";
 import { S } from "../state/shared.js";
 import { UN } from "../union/store.js";
 import { drawBinderShelf } from "../features/mybinders.js";
@@ -15,16 +16,6 @@ import { drawBinderShelf } from "../features/mybinders.js";
    Top: the value of the collection with its curve (one point per day, kept on this device),
    a preview of the most valuable cards, then every card, sorted the way you choose. */
 
-const SORTS = [
-  { k: "num", l: "Par numéro de carte", d: 1, i: '<rect x="4" y="3" width="13" height="17" rx="2"/><path d="M19 13v8M15.5 15.5h7M15.5 18.5h7"/>' },
-  { k: "type", l: "Par type", d: 1, i: '<circle cx="12" cy="12" r="9"/><path d="m12 6 1.6 4.4L18 12l-4.4 1.6L12 18l-1.6-4.4L6 12l4.4-1.6z"/>' },
-  { k: "rar", l: "Par rareté", d: -1, i: '<path d="M12 3 21 12 12 21 3 12z"/>' },
-  { k: "qty", l: "Par nombre d'exemplaires", d: -1, i: '<rect x="4" y="3" width="13" height="17" rx="2"/><path d="M20 6v14a1 1 0 0 1-1 1H8"/>' },
-  { k: "set", l: "Par extension", d: -1, i: '<rect x="5" y="2.5" width="14" height="19" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M5 12h4M15 12h4"/>' },
-  { k: "price", l: "Par prix", d: -1, i: '<path d="M17 6.5A6.5 6.5 0 1 0 17 17.5"/><path d="M4 10h9M4 14h9"/>' },
-  { k: "fav", l: "Par favoris", d: -1, i: '<path d="M6 3h12v18l-6-4-6 4z"/><path d="m12 7 1.1 2.3 2.5.3-1.8 1.8.4 2.5-2.2-1.2-2.2 1.2.4-2.5-1.8-1.8 2.5-.3z"/>' }
-];
-const TYPES = ["Plante", "Feu", "Eau", "Électrique", "Psy", "Combat", "Obscurité", "Métal", "Dragon", "Fée", "Incolore"];
 const svg = (p, w = 2) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const ARROW_UP = svg('<path d="M12 19V5M6 11l6-6 6 6"/>', 2.2);
 const SORT_ICON = svg('<path d="M7 4v16M3.5 16.5 7 20l3.5-3.5M14 6h7M14 12h5M14 18h3"/>');
@@ -76,8 +67,12 @@ export async function renderCollection() {
 
   // every owned card, with what we sort on
   const items = [];
+  const seen = new Map();
   for (const s of sets) for (const c of s.cards) {
     if (!ownedAny(c.id)) continue;
+    // a product promo is listed in its extension AND in the promo set: show it once
+    if (seen.has(c.id)) { const j = seen.get(c.id); if (items[j].c.linked && !c.linked) items[j] = null; else continue; }
+    seen.set(c.id, items.length);
     const e = S.COL.cards[c.id], vs = Object.entries(e.v).filter(([, n]) => n > 0);
     items.push({
       c: Object.assign(c, { _info: s.info }), info: s.info,
@@ -88,6 +83,7 @@ export async function renderCollection() {
       date: s.info.date || ""
     });
   }
+  for (let j = items.length - 1; j >= 0; j--) if (!items[j]) items.splice(j, 1);
   drawHero(items);
   const shelf = $("#colshelf"); shelf.hidden = false;
   const refreshShelf = () => drawBinderShelf(shelf, items, refreshShelf);
@@ -201,20 +197,6 @@ function openSort(items) {
 }
 
 /* ---------- the cards ---------- */
-const typeRank = c => { const t = (c.t || "").split(",")[0].trim(); const i = TYPES.indexOf(t); return i >= 0 ? i : c.cat === "Dresseur" ? 20 : c.cat === "Énergie" ? 21 : 19; };
-function sorted(items) {
-  const d = pref.d, bySetNo = (a, b) => a.date.localeCompare(b.date) || a.info.id.localeCompare(b.info.id) || a.no - b.no || (a.c.n || "").localeCompare(b.c.n || "");
-  const key = {
-    num: (a, b) => d * bySetNo(a, b),
-    set: (a, b) => d * (a.date.localeCompare(b.date) || a.info.id.localeCompare(b.info.id)) || a.no - b.no,
-    type: (a, b) => d * (typeRank(a.c) - typeRank(b.c)) || a.c.name.localeCompare(b.c.name, "fr"),
-    rar: (a, b) => d * (rarity(a.c.r).rank - rarity(b.c.r).rank) || b.unit - a.unit,
-    qty: (a, b) => d * (a.q - b.q) || b.unit - a.unit,
-    price: (a, b) => d * (a.unit - b.unit) || bySetNo(a, b),
-    fav: (a, b) => d * (isFav(a.c.id) - isFav(b.c.id)) || b.unit - a.unit
-  }[pref.k] || ((a, b) => bySetNo(a, b));
-  return [...items].sort(key);
-}
 const tile = (x, i) => `<div class="tile owned">
     <button class="cardimg" data-i="${i}" aria-label="${esc(x.c.name)}">${imgTag(x.c, "low")}${fxHTML(foilOf(x.c))}${isFav(x.c.id) ? `<span class="favtag" aria-label="Favorite">★</span>` : ""}</button>
     ${x.q > 1 ? `<span class="qty">×${x.q}</span>` : ""}
@@ -223,7 +205,7 @@ const tile = (x, i) => `<div class="tile owned">
 function drawBody(items) {
   const box = $("#colbody"); if (!box) return;
   const qq = query.trim().toLowerCase();
-  let list = sorted(items);
+  let list = sortItems(items, pref.k, pref.d);
   if (qq) list = list.filter(x => x.c.name.toLowerCase().includes(qq) || (x.c.n || "").replace(/^0+/, "") === qq.replace(/^0+/, "") || (x.info.name || "").toLowerCase().includes(qq));
   if (!list.length) { box.innerHTML = `<div class="empty-state"><b>Aucune carte</b>Rien ne correspond à « ${esc(query)} ».</div>`; return; }
   if (pref.k === "set") {

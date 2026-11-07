@@ -306,3 +306,14 @@
 .bview.bare .bv-bar,.bview.bare .bv-colors,.bview.bare .bv-pager,.bview.bare .bv-close{visibility:hidden}
 .bview.bare .bv-bar{height:0;padding:0;overflow:hidden}
 .bview.bare .bv-hide{opacity:.55}
+.be-tools{display:flex;align-items:center;gap:10px;margin:8px 0 0;min-width:0}
+.be-t{flex:none;width:58px;font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.be-chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;min-width:0;padding:2px}
+.be-chips::-webkit-scrollbar{display:none}
+.be-chip{flex:none;display:inline-flex;align-items:center;gap:4px;height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-weight:700;font-size:13.5px;cursor:pointer;white-space:nowrap}
+.be-chip .rsvg{width:18px;height:18px}
+.be-chip.on{background:var(--navy);border-color:var(--navy);color:var(--navy-ink)}
+.be-chip .sdir svg{width:14px;height:14px}
+.be-bulk{display:flex;justify-content:space-between;margin:8px 0}
+.be-bulk .linkbtn{color:var(--navy);font-size:14px;font-weight:700;cursor:pointer}
+.be-bulk .linkbtn:disabled{opacity:.4;cursor:default}

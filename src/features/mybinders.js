@@ -6,6 +6,8 @@ import { $, ICON, esc } from "../lib/core.js";
 import { LS } from "../lib/storage.js";
 import { imgTag, numLabel, toast } from "../lib/ui.js";
 import { BINDER_COLORS, openBinderView } from "./binderview.js";
+import { SORTS, sortItems } from "./colsort.js";
+import { rarity, symHTML } from "./rarity.js";
 
 const KEY = "pc-binders";
 export const myBinders = () => LS.get(KEY, []);
@@ -44,6 +46,12 @@ export function openBinderEditor(i, items, refresh) {
   const all = myBinders();
   const cur = i == null ? { name: "", color: BINDER_COLORS[0], mode: "pages", cards: [] } : structuredClone(all[i]);
   let picked = cur.cards.map(c => c.id), q = "";
+  let sk = "rar", sd = -1;               // sort: rarest first
+  const rarOn = new Set();               // rarity filter
+  const rkey = c => { const r = rarity(c.r); return r.sym + "|" + r.cls; };
+  const groups = [...new Map(items.filter(x => x.c.r).map(x => [rkey(x.c), { k: rkey(x.c), r: x.c.r, rank: rarity(x.c.r).rank }])).values()].sort((a, b) => a.rank - b.rank);
+  const SHORT = { num: "Numéro", type: "Type", rar: "Rareté", qty: "Exemplaires", set: "Extension", price: "Prix", fav: "Favoris" };
+  const ARROW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg>';
   const byId = new Map(items.map(x => [x.c.id, x]));
   const root = $("#modal-root");
   const close = () => { root.innerHTML = ""; document.body.style.overflow = ""; removeEventListener("keydown", key); };
@@ -60,19 +68,26 @@ export function openBinderEditor(i, items, refresh) {
     </div>
     <div class="be-lbl be-cards">Cartes <em id="be-n"></em><span class="note">La première carte choisie fait la couverture.</span></div>
     <label class="search" for="be-q">${ICON.search}<input id="be-q" placeholder="Rechercher dans ma collection" autocomplete="off"></label>
+    <div class="be-tools"><span class="be-t">Trier</span><div class="be-chips" id="be-sort"></div></div>
+    ${groups.length > 1 ? `<div class="be-tools"><span class="be-t">Rareté</span><div class="be-chips" id="be-rar">${groups.map(g => `<button class="be-chip" data-r="${esc(g.k)}" title="${esc(g.r)}">${symHTML(g.r)}</button>`).join("")}</div></div>` : ""}
+    <div class="be-bulk"><button class="linkbtn" id="be-all"></button><button class="linkbtn" id="be-none">Tout retirer</button></div>
     <div class="be-grid" id="be-grid"></div>
     <div class="be-foot">${i == null ? "" : `<button class="linkbtn be-del" id="be-del">Supprimer</button>`}<button class="pill" id="be-save">Enregistrer</button></div>
   </div></div>`;
   const grid = $("#be-grid");
+  let shown = [];
   const drawGrid = () => {
     const qq = q.trim().toLowerCase();
-    // chosen cards first (in order), then the rest of the collection; cards no longer owned stay listed while chosen
-    const chosen = picked.map(id => byId.get(id) || { c: cur.cards.find(c => c.id === id), info: {} }).filter(x => x.c);
-    const rest = items.filter(x => !picked.includes(x.c.id));
-    const show = [...chosen, ...rest].filter(x => !qq || x.c.name.toLowerCase().includes(qq) || (x.info?.name || "").toLowerCase().includes(qq));
-    grid.innerHTML = show.map(x => { const k = picked.indexOf(x.c.id);
+    // cards no longer in the collection stay listed while chosen
+    const gone = picked.filter(id => !byId.has(id)).map(id => ({ c: cur.cards.find(c => c.id === id), info: {}, q: 1, val: 0, unit: 0, no: 0, date: "" })).filter(x => x.c);
+    shown = sortItems([...items, ...gone], sk, sd).filter(x => (!qq || x.c.name.toLowerCase().includes(qq) || (x.info?.name || "").toLowerCase().includes(qq)) && (!rarOn.size || rarOn.has(rkey(x.c))));
+    grid.innerHTML = shown.map(x => { const k = picked.indexOf(x.c.id);
       return `<button class="be-card ${k >= 0 ? "on" : ""}" data-id="${esc(x.c.id)}" aria-pressed="${k >= 0}">${imgTag(x.c, "low")}${k >= 0 ? `<span class="be-k">${k === 0 ? "★" : k + 1}</span>` : ""}</button>`; }).join("") || `<p class="note">Aucune carte.</p>`;
     $("#be-n").textContent = picked.length;
+    const add = shown.filter(x => !picked.includes(x.c.id)).length;
+    const all = $("#be-all"); all.textContent = `Tout ajouter (${add})`; all.disabled = !add;
+    $("#be-none").disabled = !picked.length;
+    $("#be-sort").innerHTML = SORTS.map(o => `<button class="be-chip ${o.k === sk ? "on" : ""}" data-k="${o.k}">${SHORT[o.k]}${o.k === sk ? `<i class="sdir ${sd > 0 ? "" : "down"}">${ARROW}</i>` : ""}</button>`).join("");
   };
   grid.onclick = e => {
     const b = e.target.closest("[data-id]"); if (!b) return;
@@ -81,6 +96,10 @@ export function openBinderEditor(i, items, refresh) {
     drawGrid();
   };
   $("#be-q").oninput = e => { q = e.target.value; drawGrid(); };
+  $("#be-sort").onclick = e => { const b = e.target.closest("[data-k]"); if (!b) return; const o = SORTS.find(x => x.k === b.dataset.k); if (sk === o.k) sd = -sd; else { sk = o.k; sd = o.d; } drawGrid(); };
+  const rb = $("#be-rar"); if (rb) rb.onclick = e => { const b = e.target.closest("[data-r]"); if (!b) return; const k = b.dataset.r; rarOn.has(k) ? rarOn.delete(k) : rarOn.add(k); b.classList.toggle("on", rarOn.has(k)); drawGrid(); };
+  $("#be-all").onclick = () => { for (const x of shown) if (!picked.includes(x.c.id)) picked.push(x.c.id); drawGrid(); };
+  $("#be-none").onclick = () => { picked = []; drawGrid(); };
   $("#be-colors").onclick = e => { const b = e.target.closest("[data-c]"); if (!b) return; cur.color = b.dataset.c; [...e.currentTarget.children].forEach(x => x.classList.toggle("on", x === b)); };
   $("#be-mode").onclick = e => { const b = e.target.closest("[data-m]"); if (!b) return; cur.mode = b.dataset.m; [...e.currentTarget.children].forEach(x => x.classList.toggle("on", x === b)); };
   $("#m-close").onclick = close;

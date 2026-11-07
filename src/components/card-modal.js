@@ -4,18 +4,20 @@ import { badgeHTML, eur, foilOf, fxHTML, isSpecial, mainVariant, priceOf, rareNa
 import { $, ICON, esc } from "../lib/core.js";
 import { fmtDate, imgTag, numLabel, toast } from "../lib/ui.js";
 import { codeBadge, logoImg } from "../data/tcgdex.js";
-import { attachTilt } from "../features/tilt.js";
+import { askMotion, attachTilt } from "../features/tilt.js";
 import { renderCollection } from "../pages/collection.js";
 import { renderSetStats } from "../pages/set-stats.js";
 import { drawCards, refreshCounts } from "../pages/set.js";
 import { isFav, ownedAny, qtyOf, setFav, setQty } from "../state/collection.js";
 import { S } from "../state/shared.js";
 import { unToggleWish } from "../union/feed.js";
+import { regionOf, sprite } from "../pages/pokedex.js";
 import { unListingForm } from "../union/market.js";
 import { UN } from "../union/store.js";
 
 /* ================= CARD MODAL ================= */
 export function openCard(card, seq, startV) {
+  askMotion();   // iPhone: the 3D card follows the phone (permission asked during this tap)
   const root = $("#modal-root");
   let idx = seq.findIndex(c => c.id === card.id);
   let pv = startV || null; /* version shown on the big card */
@@ -49,6 +51,7 @@ export function openCard(card, seq, startV) {
           <button class="pill ghost" id="m-prev" ${idx === 0 ? "disabled" : ""}>${ICON.prev}</button>
           <button class="pill ghost" id="m-next" ${idx >= seq.length - 1 ? "disabled" : ""}>${ICON.next}</button>
           <a class="pill ghost" href="https://www.cardmarket.com/fr/Pokemon/Products/Search?searchString=${encodeURIComponent(c.name)}" target="_blank" rel="noopener">Cardmarket</a>
+          ${c.dx?.length ? `<button class="pill ghost" id="m-dex">Pokédex</button>` : ""}
           <button class="pill ghost" id="m-wish">${UN.wish.some(w => w.id === c.id) ? "Dans ma liste" : "Je la cherche"}</button>
           ${ownedAny(c.id) ? `<button class="pill ghost" id="m-sell">Vendre</button><button class="pill ghost ${isFav(c.id) ? "on" : ""}" id="m-fav">${isFav(c.id) ? "★ Favorite" : "☆ Favori"}</button>` : ""}
         </div>
@@ -61,6 +64,7 @@ export function openCard(card, seq, startV) {
     const sb = $("#m-sell"); if (sb) sb.onclick = () => { if (!UN.me.name) { close(); toast("Crée d'abord ton profil Union Room"); location.hash = "#/union/profile"; return; } const r = cref(); close(); unListingForm(r); };
     $("#m-prev").onclick = () => { if (idx > 0) { idx--; draw(); } };
     $("#m-next").onclick = () => { if (idx < seq.length - 1) { idx++; draw(); } };
+    const dxb = $("#m-dex"); if (dxb) dxb.onclick = () => goDex(c.dx[0]);
     const fv = $("#m-fav"); if (fv) fv.onclick = () => { setFav(c.id, !isFav(c.id)); changed = true; fv.classList.toggle("on", isFav(c.id)); fv.textContent = isFav(c.id) ? "★ Favorite" : "☆ Favori"; };
     const showFoil = () => {
       const h2 = $("#holo"); h2.querySelector(".fx")?.remove(); h2.querySelector(".ftag")?.remove();
@@ -139,6 +143,7 @@ export function openCard(card, seq, startV) {
           ${row("Marque", c.rm ? `<span class="cp-rm">${esc(c.rm)}</span>` : "")}
           ${row("Prix", prices)}
         </dl>
+        ${c.dx?.length ? `<button class="cp-dexbtn" id="m-dex"><img src="${sprite(c.dx[0])}" alt="" loading="lazy" onerror="this.remove()"><span>Voir dans le Pokédex<small>N° ${String(c.dx[0]).padStart(4, "0")}</small></span>${ICON.next}</button>` : ""}
         ${related.length ? `<div class="cp-hd">Cartes connexes</div><div class="cp-rel">${related.map(x => `<button class="cp-relc ${ownedAny(x.id) ? "" : "miss"}" data-rel="${esc(x.id)}" aria-label="${esc(x.name)}">${imgTag(x, "low")}</button>`).join("")}</div>` : ""}
         <p class="note cp-tip">Glisse la carte à gauche ou à droite pour passer à la suivante.</p>
       </div></div>
@@ -167,6 +172,7 @@ export function openCard(card, seq, startV) {
     $("#m-next").onclick = () => { if (idx < seq.length - 1) { idx++; draw(); } };
     const cref = () => ({ id: c.id, name: c.name, img: c.img, set: nInfo.name || "", n: c.n, r: c.r, p: priceOf(c, pv) || c.p || 0, dx: c.dx || [] });
     $("#m-wish").onclick = () => { unToggleWish(cref()); const y = sc.scrollTop; draw(); $("#cp-scroll").scrollTop = y; };
+    const dxb = $("#m-dex"); if (dxb) dxb.onclick = () => goDex(c.dx[0]);
     const fv = $("#m-fav"); if (fv) fv.onclick = () => { setFav(c.id, !isFav(c.id)); changed = true; const y = sc.scrollTop; draw(); $("#cp-scroll").scrollTop = y; };
     const sb = $("#m-sell"); if (sb) sb.onclick = () => { if (!UN.me.name) { close(); toast("Crée d'abord ton profil Union Room"); location.hash = "#/union/profile"; return; } const r2 = cref(); close(); unListingForm(r2); };
     const showFoil = () => {
@@ -195,6 +201,8 @@ export function openCard(card, seq, startV) {
       else { const x = pool.find(y => y.id === b.dataset.rel); if (x) { seq = [c, ...related]; idx = seq.indexOf(x); pv = null; draw(); } }
     });
   };
+  /* open this Pokémon in the Pokédex */
+  const goDex = n => { close(); location.hash = `#/pokedex/${regionOf(n)?.id || "national"}/${n}`; };
   let changed = false;
   const key = e => { if (e.key === "Escape") close(); if (e.key === "ArrowRight" && idx < seq.length - 1) { idx++; draw(); } if (e.key === "ArrowLeft" && idx > 0) { idx--; draw(); } };
   function close() { untilt(); root.innerHTML = ""; document.removeEventListener("keydown", key); document.body.style.overflow = ""; if (changed) { if (location.hash.startsWith("#/stats/")) { const y = scrollY; renderSetStats(decodeURIComponent(location.hash.slice(8))).then(() => scrollTo(0, y)); } else if ($("#cards") && S.CUR) { const y = scrollY; drawCards(); refreshCounts(); scrollTo(0, y); } else if (location.hash.startsWith("#/collection")) renderCollection(); } }

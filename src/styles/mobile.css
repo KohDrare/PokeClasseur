@@ -238,3 +238,8 @@ html.m .bcover{width:140px;height:178px}
 html.m .beditor{max-height:100%;height:calc(100% - 10px)}
 html.m .be-grid{grid-template-columns:repeat(4,minmax(0,1fr));max-height:none}
 html.m .be-foot{bottom:calc(-18px - env(safe-area-inset-bottom,0px));padding-bottom:calc(6px + env(safe-area-inset-bottom,0px))}
+html.m .cp-dexbtn{display:flex;align-items:center;gap:12px;width:100%;margin:22px 0 0;padding:8px 16px 8px 8px;border:0;border-radius:18px;background:var(--navy-soft);color:var(--fg);text-align:left;cursor:pointer}
+html.m .cp-dexbtn img{width:52px;height:52px;object-fit:contain;flex:none;background:var(--surface);border-radius:14px}
+html.m .cp-dexbtn span{flex:1;display:flex;flex-direction:column;font-weight:800;font-size:15.5px}
+html.m .cp-dexbtn small{font:600 12px var(--mono);color:var(--muted);margin-top:2px}
+html.m .cp-dexbtn svg{width:20px;height:20px;color:var(--navy)}

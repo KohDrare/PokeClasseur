@@ -12,8 +12,22 @@ export function askMotion() {
   if (typeof DOE.requestPermission !== "function") { motionOK = true; return; }   // Android, others: nothing to ask
   if (motionAsked) return;
   motionAsked = true;
-  DOE.requestPermission().then(r => { motionOK = r === "granted"; }).catch(() => { motionOK = false; });
+  DOE.requestPermission().then(r => {
+    motionOK = r === "granted";
+    try { localStorage.setItem("pc-motion", motionOK ? "1" : "0"); } catch { /* private mode */ }
+  }).catch(() => { motionAsked = false; });   // not from a tap: try again at the next one
 }
+
+/* iPhone forgets the motion permission every time the site is reopened, and it can only be asked during a tap.
+   Once you have said yes, it is asked again silently at your very first tap anywhere in the app
+   (iOS answers straight away when it still remembers, or shows its short prompt once). */
+try {
+  if (localStorage.getItem("pc-motion") === "1" && typeof window.DeviceOrientationEvent?.requestPermission === "function") {
+    const first = () => { removeEventListener("touchend", first, true); removeEventListener("click", first, true); askMotion(); };
+    addEventListener("touchend", first, true);
+    addEventListener("click", first, true);
+  }
+} catch { /* no storage */ }
 
 export function attachTilt(el, { gyro = true } = {}) {
   let tx = 0, ty = 0, rx = 0, ry = 0, raf = 0, base = null, lastPointer = 0, alive = true;
