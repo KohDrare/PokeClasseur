@@ -2,7 +2,9 @@ import { openViewer } from "./viewer.js";
 import { rarity, symHTML } from "../features/rarity.js";
 import { badgeHTML, eur, foilOf, fxHTML, isSpecial, mainVariant, priceOf, rareName, variantLabel, variantsOf } from "../features/variants.js";
 import { $, ICON, esc } from "../lib/core.js";
-import { imgTag, numLabel, toast } from "../lib/ui.js";
+import { fmtDate, imgTag, numLabel, toast } from "../lib/ui.js";
+import { codeBadge, logoImg } from "../data/tcgdex.js";
+import { attachTilt } from "../features/tilt.js";
 import { renderCollection } from "../pages/collection.js";
 import { renderSetStats } from "../pages/set-stats.js";
 import { drawCards, refreshCounts } from "../pages/set.js";
@@ -18,7 +20,10 @@ export function openCard(card, seq, startV) {
   let idx = seq.findIndex(c => c.id === card.id);
   let pv = startV || null; /* version shown on the big card */
   const info = S.CUR?.data?.info || card._info || {};
+  let untilt = () => {};
   const draw = () => {
+    untilt(); untilt = () => {};
+    if (document.documentElement.classList.contains("m")) return drawPhone();
     const c = seq[idx];
     const r = rarity(c.r);
     if (!pv || !variantsOf(c).includes(pv)) pv = mainVariant(c);
@@ -81,9 +86,114 @@ export function openCard(card, seq, startV) {
       h.onpointerup = () => h.classList.remove("touching");
     }
   };
+
+  /* ---- phone: the card at the top, a sheet below it that slides up (the card shrinks), like TCG Pocket ---- */
+  const drawPhone = () => {
+    const c = seq[idx];
+    const r = rarity(c.r);
+    if (!pv || !variantsOf(c).includes(pv)) pv = mainVariant(c);
+    const nInfo = c._info || info;
+    const owned = Object.values(S.COL.cards[c.id]?.v || {}).reduce((a, b) => a + b, 0);
+    const wished = UN.wish.some(w => w.id === c.id);
+    const pool = (S.CUR?.data?.cards?.some(x => x.id === c.id) ? S.CUR.data.cards : seq).filter(x => !x.grp);
+    const base = s => (s || "").toLowerCase().replace(/[-\s]?(ex|gx|v|vmax|vstar|v-union)$/i, "").trim();
+    const related = pool.filter(x => x.id !== c.id && (base(x.name) === base(c.name) || (c.dx?.length && x.dx?.some(d => c.dx.includes(d))))).slice(0, 12);
+    const rarLabel = c.ok ? (isSpecial(c) ? rareName(c) : r.label) : "…";
+    const row = (k, v) => v ? `<div class="cp-row"><dt>${k}</dt><dd>${v}</dd></div>` : "";
+    const prices = variantsOf(c).map(v => priceOf(c, v) ? `${esc(variantLabel(c, v))} : ${eur(priceOf(c, v))}` : "").filter(Boolean).join("<br>");
+    root.innerHTML = `<div class="cpage" id="mdl" role="dialog" aria-modal="true" aria-label="${esc(c.name)}">
+      <div class="cp-top" id="cp-top">
+        <div class="cp-bar">
+          <span class="cp-own ${owned ? "have" : ""}" title="Exemplaires possédés">${ICON.cards}<b>${owned}</b></span>
+          <span class="cp-pos">${idx + 1} / ${seq.length}</span>
+          <button class="cp-ico ${wished ? "on" : ""}" id="m-wish" aria-pressed="${wished}" aria-label="Je la cherche"><svg viewBox="0 0 24 24" fill="${wished ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg><small>${wished ? "Recherchée" : "Je la cherche"}</small></button>
+        </div>
+        <div class="cp-stage" id="cp-stage"><div class="cp-card" id="cp-card">${imgTag(c, "high")}${fxHTML(foilOf(c, pv))}${badgeHTML(c, pv)}<span class="vw-glare"></span></div></div>
+      </div>
+      <div class="cp-scroll" id="cp-scroll"><div class="cp-sheet" id="cp-sheet">
+        <div class="cp-head">
+          <div class="cp-acts">
+            <a class="pill ghost" href="https://www.cardmarket.com/fr/Pokemon/Products/Search?searchString=${encodeURIComponent(c.name)}" target="_blank" rel="noopener">Cardmarket</a>
+            ${owned ? `<button class="pill ghost" id="m-sell">Vendre</button>` : ""}
+          </div>
+        </div>
+        <h2 class="cp-name">${esc(c.name)}</h2>
+        <div class="cp-rar">${c.ok ? symHTML(c.r) : ""}<span>${esc(rarLabel)}</span></div>
+        ${c.cat || c.hp || c.dx?.length ? `<div class="cp-box">${[c.dx?.length ? `N° ${String(c.dx[0]).padStart(4, "0")}` : "", c.cat ? esc(c.cat) + (c.st ? " " + esc(c.st) : "") : "", c.hp ? `PV ${esc(c.hp)}` : "", c.t ? esc(c.t) : ""].filter(Boolean).join(" · ")}</div>` : ""}
+        <div class="cp-set">
+          <div class="cp-logo">${nInfo.id ? logoImg(nInfo.id, nInfo.logo, nInfo.name, nInfo.serie?.id, true) : esc(nInfo.name || "")}</div>
+          <div class="cp-num">${nInfo.id ? `<span class="cp-code">${codeBadge(nInfo.id, nInfo.abbr)}</span>` : ""}<b>${esc(numLabel(c, nInfo))}</b></div>
+        </div>
+        <div class="h3">Ma collection</div>
+        <div class="versions" id="vers">${variantsOf(c).map(v => verRow(c, v, v === pv)).join("")}</div>
+        <dl class="cp-rows">
+          ${row("Extension", esc(c.linked ? nInfo.promoSet || "Promo" : nInfo.name || c._setName || ""))}
+          ${row("Série", esc(nInfo.serie?.name || ""))}
+          ${row("Sortie", nInfo.date ? esc(fmtDate(nInfo.date)) : "")}
+          ${row("Rareté", c.ok ? `${symHTML(c.r)} ${esc(c.r || r.label)}` : "")}
+          ${row("Obtenue avec", esc(c.prod || ""))}
+          ${row("Illustration", esc(c.il || ""))}
+          ${row("Marque", c.rm ? `<span class="cp-rm">${esc(c.rm)}</span>` : "")}
+          ${row("Prix", prices)}
+        </dl>
+        ${related.length ? `<div class="cp-hd">Cartes connexes</div><div class="cp-rel">${related.map(x => `<button class="cp-relc ${ownedAny(x.id) ? "" : "miss"}" data-rel="${esc(x.id)}" aria-label="${esc(x.name)}">${imgTag(x, "low")}</button>`).join("")}</div>` : ""}
+        <p class="note cp-tip">Glisse la carte à gauche ou à droite pour passer à la suivante.</p>
+      </div></div>
+      <button id="m-prev" hidden ${idx === 0 ? "disabled" : ""}></button><button id="m-next" hidden ${idx >= seq.length - 1 ? "disabled" : ""}></button>
+      <button class="cp-close" id="m-close" aria-label="Fermer">${ICON.x}</button>
+    </div>`;
+    const top = $("#cp-top"), stage = $("#cp-stage"), card = $("#cp-card"), sc = $("#cp-scroll"), sheet = $("#cp-sheet");
+    // sizes: full card, then it shrinks to a third while the sheet comes up
+    const BAR = 58 + (parseFloat(getComputedStyle(top).paddingTop) || 0);
+    const H0 = Math.min(innerHeight * 0.56, (innerWidth - 80) * 88 / 63), HMIN = Math.round(H0 * 0.36), GAP = 18;
+    card.style.height = H0 + "px";
+    sheet.style.marginTop = BAR + H0 + GAP + "px";   // a margin, not padding: sticky positions count from the padding edge
+    sheet.style.minHeight = innerHeight - BAR - HMIN - GAP + "px";
+    root.querySelector(".cpage").style.setProperty("--pin", BAR + HMIN + GAP + "px");
+    const fit = () => {
+      const h = Math.max(HMIN, H0 - sc.scrollTop);
+      stage.style.transform = `scale(${(h / H0).toFixed(4)})`;
+      top.style.height = BAR + h + GAP + "px";
+    };
+    sc.addEventListener("scroll", () => requestAnimationFrame(fit), { passive: true });
+    fit();
+    untilt = attachTilt(card);
+    card.onclick = () => openViewer(c, null, pv);
+    $("#m-close").onclick = close;
+    $("#m-prev").onclick = () => { if (idx > 0) { idx--; draw(); } };
+    $("#m-next").onclick = () => { if (idx < seq.length - 1) { idx++; draw(); } };
+    const cref = () => ({ id: c.id, name: c.name, img: c.img, set: nInfo.name || "", n: c.n, r: c.r, p: priceOf(c, pv) || c.p || 0, dx: c.dx || [] });
+    $("#m-wish").onclick = () => { unToggleWish(cref()); const y = sc.scrollTop; draw(); $("#cp-scroll").scrollTop = y; };
+    const sb = $("#m-sell"); if (sb) sb.onclick = () => { if (!UN.me.name) { close(); toast("Crée d'abord ton profil Union Room"); location.hash = "#/union/profile"; return; } const r2 = cref(); close(); unListingForm(r2); };
+    const showFoil = () => {
+      card.querySelector(".fx")?.remove(); card.querySelector(".ftag")?.remove();
+      card.querySelector(".vw-glare").insertAdjacentHTML("beforebegin", fxHTML(foilOf(c, pv)) + badgeHTML(c, pv));
+      document.querySelectorAll("#vers .ver").forEach(x => x.classList.toggle("on", x.dataset.v === pv));
+    };
+    $("#vers").onclick = e => {
+      const b = e.target.closest("[data-d]");
+      if (b) {
+        const v = b.dataset.v; setQty(c, v, qtyOf(c.id, v) + (+b.dataset.d));
+        b.closest(".ver").outerHTML = verRow(c, v, v === pv);
+        changed = true;
+        const n = Object.values(S.COL.cards[c.id]?.v || {}).reduce((a, x) => a + x, 0);
+        const o = root.querySelector(".cp-own"); o.classList.toggle("have", !!n); o.querySelector("b").textContent = n;
+        if (v !== pv) { pv = v; showFoil(); }
+        return;
+      }
+      const rw = e.target.closest(".ver"); if (!rw || rw.dataset.v === pv) return;
+      pv = rw.dataset.v; showFoil();
+    };
+    root.querySelector(".cp-rel")?.addEventListener("click", e => {
+      const b = e.target.closest("[data-rel]"); if (!b) return;
+      const j = seq.findIndex(x => x.id === b.dataset.rel);
+      if (j >= 0) { idx = j; pv = null; draw(); }
+      else { const x = pool.find(y => y.id === b.dataset.rel); if (x) { seq = [c, ...related]; idx = seq.indexOf(x); pv = null; draw(); } }
+    });
+  };
   let changed = false;
   const key = e => { if (e.key === "Escape") close(); if (e.key === "ArrowRight" && idx < seq.length - 1) { idx++; draw(); } if (e.key === "ArrowLeft" && idx > 0) { idx--; draw(); } };
-  function close() { root.innerHTML = ""; document.removeEventListener("keydown", key); document.body.style.overflow = ""; if (changed) { if (location.hash.startsWith("#/stats/")) { const y = scrollY; renderSetStats(decodeURIComponent(location.hash.slice(8))).then(() => scrollTo(0, y)); } else if ($("#cards") && S.CUR) { const y = scrollY; drawCards(); refreshCounts(); scrollTo(0, y); } else if (location.hash.startsWith("#/collection")) renderCollection(); } }
+  function close() { untilt(); root.innerHTML = ""; document.removeEventListener("keydown", key); document.body.style.overflow = ""; if (changed) { if (location.hash.startsWith("#/stats/")) { const y = scrollY; renderSetStats(decodeURIComponent(location.hash.slice(8))).then(() => scrollTo(0, y)); } else if ($("#cards") && S.CUR) { const y = scrollY; drawCards(); refreshCounts(); scrollTo(0, y); } else if (location.hash.startsWith("#/collection")) renderCollection(); } }
   document.addEventListener("keydown", key);
   document.body.style.overflow = "hidden";
   draw();

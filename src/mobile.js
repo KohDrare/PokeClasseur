@@ -50,7 +50,7 @@ if (html.classList.contains("m")) {
   /* card sheet: swipe left / right for the next / previous card */
   let t0 = null;
   document.addEventListener("touchstart", e => {
-    const sheet = e.target.closest?.("#mdl .sheet");
+    const sheet = e.target.closest?.("#mdl .sheet, #mdl.cpage .cp-top, #mdl.cpage .cp-stage");
     t0 = sheet && $("#m-next") && e.touches.length === 1 && !e.target.closest("input,textarea,.versions") ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() } : null;
   }, { passive: true });
   document.addEventListener("touchend", e => {
@@ -58,7 +58,7 @@ if (html.classList.contains("m")) {
     const dx = e.changedTouches[0].clientX - t0.x, dy = e.changedTouches[0].clientY - t0.y;
     if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.6 && Date.now() - t0.t < 700) {
       const b = $(dx < 0 ? "#m-next" : "#m-prev");
-      if (b && !b.disabled) { b.click(); $("#mdl .sheet")?.classList.add(dx < 0 ? "in-r" : "in-l"); }
+      if (b && !b.disabled) { b.click(); $("#mdl .sheet, #mdl #cp-card")?.classList.add(dx < 0 ? "in-r" : "in-l"); }
     }
     t0 = null;
   }, { passive: true });

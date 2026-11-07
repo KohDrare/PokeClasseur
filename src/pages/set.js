@@ -79,14 +79,16 @@ export function drawSetHead() {
 }
 export function bindHeroButtons() {
   const c = $("#hb-check"), pr = $("#hb-prod"); if (!c) return;
-  c.onclick = () => { PREF.view = "list"; savePref(); S.CUR.page = 0; drawSetBody(); $("#cards").scrollIntoView({ block: "start", behavior: "smooth" }); };
-  pr.onclick = () => openProducts(S.CUR.data.info);
+  const shut = () => { if (S.CUR?.msheet) mobSheet(null); };
+  c.onclick = () => { shut(); PREF.view = "list"; savePref(); S.CUR.page = 0; drawSetBody(); $("#cards").scrollIntoView({ block: "start", behavior: "smooth" }); };
+  pr.onclick = () => { shut(); openProducts(S.CUR.data.info); };
   const pm = $("#hb-promos");
-  if (pm) pm.onclick = () => { PREF.versions = true; savePref(); S.CUR.rar = new Set(["promo|"]); S.CUR.page = 0; drawSetBody(); refreshProgress(); $("#cards").scrollIntoView({ block: "start", behavior: "smooth" }); };
+  if (pm) pm.onclick = () => { shut(); PREF.versions = true; savePref(); S.CUR.rar = new Set(["promo|"]); S.CUR.page = 0; drawSetBody(); refreshProgress(); $("#cards").scrollIntoView({ block: "start", behavior: "smooth" }); };
 }
 export function refreshProgress() {
   const p = $("#prog"); if (!p) return;
   const k = setCounts();
+  const mp = $("#mb-prog"); if (mp) mp.textContent = `${k.own}/${k.total}`;
   p.innerHTML = `${progHTML(k)}</div><span class="go"><span>Stats</span>${ICON.next}</span>`;
 }
 export function rarityGroups() {
@@ -100,6 +102,11 @@ export function drawSetBody() {
   const k = setCounts();
   const ready = S.CUR.loading >= 1;
   body.innerHTML = `
+    <div class="mbar">
+      <button class="mbtn" id="mb-info">${M_INFO}<span>Infos</span><em id="mb-prog">${k.own}/${k.total}</em></button>
+      <button class="mbtn" id="mb-filt">${M_FILT}<span>Filtres</span><em id="mb-fn" hidden></em></button>
+      <div class="seg mview" id="mb-view">${[["grid", ICON.grid, "Grille"], ["binder", ICON.book, "Classeur"], ["list", ICON.list, "Checklist"]].map(([v, ic, l]) => `<button data-v="${v}" class="${PREF.view === v ? "on" : ""}" aria-label="${l}">${ic}</button>`).join("")}</div>
+    </div>
     <div class="toolbar">
       <div class="rar"><button class="rbtn ${PREF.own === "have" ? "on" : ""}" id="rb-have" title="Cartes possédées"><svg class="rsvg" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="8.3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7.2 11.3l2.6 2.6 5-5.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>${groups.map(g => `<button class="rbtn ${S.CUR.rar.has(g.key) ? "on" : ""}" data-r="${esc(g.key)}" title="${esc([...g.labels].join(" · "))} (${g.n})"><span class="sym">${symSVG(g.sym)}</span></button>`).join("")}</div>
       <label class="search" for="q-cards">${ICON.search}<input id="q-cards" placeholder="Rechercher une carte (nom ou numéro)" value="${esc(S.CUR.q)}" autocomplete="off"></label>
@@ -131,8 +138,67 @@ export function drawSetBody() {
   };
   $("#seg-own").onclick = e => { const b = e.target.closest("button"); if (b) setOwn(b.dataset.o); };
   $("#seg-view").onclick = e => { const b = e.target.closest("button"); if (!b) return; PREF.view = b.dataset.v; savePref(); S.CUR.page = 0; [...e.currentTarget.children].forEach(x => x.classList.toggle("on", x === b)); drawCards(); if (PREF.view === "binder") $("#cards").scrollIntoView({ block: "start", behavior: "smooth" }); };
+  $("#mb-info").onclick = () => mobSheet("info");
+  $("#mb-filt").onclick = () => mobSheet("filt");
+  $("#mb-view").onclick = e => { const b = e.target.closest("button"); if (b) $(`#seg-view [data-v="${b.dataset.v}"]`).click(); };
   drawCards();
+  if (S.CUR.msheet) mobSheet(S.CUR.msheet);   // a redraw while a sheet is open: move the fresh controls in
 }
+
+/* ---- phone: set infos and filters live in bottom sheets, the page shows the cards ---- */
+const M_INFO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>';
+const M_FILT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>';
+let moved = [];
+function putBack() {
+  for (const [n, ph] of moved) { if (ph.isConnected) ph.replaceWith(n); else n.remove(); }
+  moved = [];
+}
+export function mobSheet(kind) {
+  if (!S.CUR) return;
+  S.CUR.msheet = kind;
+  putBack();
+  document.getElementById("msheet")?.remove();
+  document.body.style.overflow = kind ? "hidden" : "";
+  if (!kind) return;
+  const info = kind === "info";
+  const el = document.createElement("div");
+  el.id = "msheet"; el.className = "modal msheet";
+  el.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-label="${info ? "Infos de l'extension" : "Filtres"}">
+    <button class="iconbtn close" id="ms-close" aria-label="Fermer">${ICON.x}</button>
+    <h2>${info ? esc(S.CUR.data?.info?.name || "Infos") : "Filtres"}</h2>
+    <div class="msbody" id="ms-body"></div>
+    ${info ? "" : `<div class="msfoot"><button class="linkbtn" id="ms-reset">Tout effacer</button><button class="pill" id="ms-done"></button></div>`}
+  </div>`;
+  document.body.append(el);
+  const box = el.querySelector("#ms-body");
+  const nodes = info ? [$("#sethead .sethero")] : [$("#setbody .search"), $("#setbody .rar"), $("#seg-own"), $("#tg-versions")];
+  nodes.forEach((n, i) => {
+    if (!n) return;
+    const ph = document.createComment("m"); n.before(ph); moved.push([n, ph]);
+    if (!info) box.insertAdjacentHTML("beforeend", `<div class="mslabel">${["Rechercher", "Rareté", "Afficher", "Versions"][i]}</div>`);
+    box.append(n);
+  });
+  const close = () => mobSheet(null);
+  el.querySelector("#ms-close").onclick = close;
+  el.onclick = e => { if (e.target === el) close(); };
+  const done = el.querySelector("#ms-done");
+  if (done) {
+    done.onclick = close;
+    el.querySelector("#ms-reset").onclick = () => {
+      S.CUR.rar.clear(); S.CUR.q = ""; PREF.own = "all"; PREF.versions = false; savePref(); S.CUR.page = 0;
+      drawSetBody(); refreshProgress();
+    };
+  }
+  mobCounts();
+}
+/* the Filtres button shows how many filters are on, the sheet button how many cards they leave */
+function mobCounts() {
+  const n = S.CUR.rar.size + (PREF.own !== "all" ? 1 : 0) + (S.CUR.q.trim() ? 1 : 0) + (PREF.versions ? 1 : 0);
+  const fn = $("#mb-fn"); if (fn) { fn.hidden = !n; fn.textContent = n; }
+  $("#mb-filt")?.classList.toggle("on", !!n);
+  const d = $("#ms-done"); if (d) { const c = entries().length; d.textContent = `Voir ${c} carte${c > 1 ? "s" : ""}`; }
+}
+addEventListener("hashchange", () => { if (document.getElementById("msheet")) { moved = []; document.getElementById("msheet").remove(); document.body.style.overflow = ""; if (S.CUR) S.CUR.msheet = null; } });
 const segN = k => PREF.versions ? [k.vTot, k.vOwn, k.vTot - k.vOwn] : [k.total, k.own, k.total - k.own];
 export function refreshCounts() {
   const k = setCounts(); const seg = $("#seg-own"); if (!seg) return;
@@ -156,6 +222,8 @@ export function entries(cardLevel) {
 }
 export function drawCards() {
   const box = $("#cards"); if (!box) return;
+  mobCounts();
+  document.querySelectorAll("#mb-view button").forEach(b => b.classList.toggle("on", b.dataset.v === PREF.view));
   const list = entries();
   if (!list.length) {
     box.innerHTML = `<div class="empty-state"><b>${PREF.own === "have" ? "Aucune carte cochée ici" : PREF.own === "miss" ? "Rien ne manque, bravo !" : "Aucune carte"}</b>${PREF.own === "have" ? "Coche le rond en haut à droite d'une carte pour l'ajouter à ta collection." : "Change les filtres pour voir d'autres cartes."}</div>`;
@@ -199,6 +267,7 @@ export function drawBinder(box, list) {
   const pageCount = Math.max(1, Math.ceil(pages / spread));
   S.CUR.page = Math.min(S.CUR.page, pageCount - 1);
   const start = S.CUR.page * spread;
+  const turn = S.CUR.turn || 0; S.CUR.turn = 0;   // page-turn direction, for the animation
   const slotHTML = p => {
     const slots = list.slice(p * PER, p * PER + PER);
     return slots.map(({ c, v }, j) => {
@@ -214,10 +283,10 @@ export function drawBinder(box, list) {
   const rings = `<div class="spine" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>`;
   let html = spread === 2
     ? `<div class="binder">${pageHTML(start, "left")}${rings}${pageHTML(start + 1, "right")}`
-    : `<div class="binder single">${rings}${pageHTML(start, "right")}`;
+    : `<div class="binder single${turn ? (turn > 0 ? " turn-n" : " turn-p") : ""}">${rings}${pageHTML(start, "right")}`;
   html += `</div><div class="pager"><button class="pill ghost" id="pg-prev" ${S.CUR.page === 0 ? "disabled" : ""}>${ICON.prev} Précédent</button><span>${spread === 2 ? `Pages ${start + 1}–${Math.min(start + 2, pages)}` : `Page ${start + 1}`} / ${pages}</span><button class="pill ghost" id="pg-next" ${S.CUR.page >= pageCount - 1 ? "disabled" : ""}>Suivant ${ICON.next}</button></div>`;
   box.innerHTML = html;
-  const go = d => { const np = S.CUR.page + d; if (np < 0 || np >= pageCount) return; S.CUR.page = np; drawCards(); $("#cards").scrollIntoView({ block: "start", behavior: "smooth" }); };
+  const go = d => { const np = S.CUR.page + d; if (np < 0 || np >= pageCount) return; S.CUR.page = np; S.CUR.turn = d; drawCards(); if ($("#cards").getBoundingClientRect().top < 0) $("#cards").scrollIntoView({ block: "start", behavior: "smooth" }); };
   $("#pg-prev").onclick = () => go(-1);
   $("#pg-next").onclick = () => go(1);
   const bd = box.querySelector(".binder"); let sx = null, sy = 0;

@@ -1,6 +1,6 @@
 /* Phone layout. Every rule is under html.m (set in index.html for small touch screens),
    so the computer version stays exactly as it is. Only the two "hidden by default" rules below are global. */
-.tabbar,#btn-more{display:none}
+.tabbar,#btn-more,.mbar{display:none}
 
 html.m{--tabh:62px;-webkit-tap-highlight-color:transparent}
 html.m body{padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px));overscroll-behavior-y:none}
@@ -120,3 +120,102 @@ html.m .untabs a{padding:10px 13px;font-size:14px}
 html.m .viewer{z-index:200}
 html.m .mrow{justify-content:flex-start;color:var(--fg)}
 html.m .mrow span,html.m .mabout summary span{flex:1;text-align:left}
+
+/* set page: the cards first; infos and filters open in sheets */
+html.m #sethead .sethero,html.m #setbody > .toolbar,html.m #setbody > .row2{display:none}
+html.m .band:has(#sethead){padding-block:10px 6px}
+html.m #sethead .titlecenter{font-size:22px;margin:0}
+html.m .mbar{display:flex;gap:8px;align-items:center;position:sticky;top:calc(50px + env(safe-area-inset-top,0px));z-index:30;background:var(--bg);margin:0 -14px;padding:10px 14px}
+html.m .mbtn{height:40px;display:inline-flex;align-items:center;gap:6px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-weight:700;font-size:14px;white-space:nowrap}
+html.m .mbtn svg{width:18px;height:18px;color:var(--navy)}
+html.m .mbtn em{font-style:normal;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+html.m .mbtn.on{border-color:var(--navy);background:var(--navy-soft)}
+html.m #mb-fn{background:var(--navy);color:#fff;border-radius:9px;padding:0 6px;min-width:18px;text-align:center;font-weight:800}
+html.m .mview{margin-left:auto;flex:none}
+html.m .mview button{padding:8px 10px}
+html.m .mview button svg{width:18px;height:18px}
+html.m .msheet .sheet{gap:0}
+html.m .msheet h2{margin:0 44px 10px 0;font-size:21px}
+html.m .msbody{display:flex;flex-direction:column;gap:8px;min-width:0}
+html.m .mslabel{font-size:11.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-top:8px}
+html.m .msbody .search{flex:none;height:46px}
+html.m .msbody .rar{flex-wrap:wrap;overflow:visible;margin:0;padding:0;width:auto}
+html.m .msbody .seg{width:100%}
+html.m .msbody .seg button{flex:1;justify-content:center;padding:10px 6px}
+html.m .msbody .toggle{width:100%;justify-content:flex-start}
+html.m .msfoot{display:flex;align-items:center;gap:14px;position:sticky;bottom:calc(-18px - env(safe-area-inset-bottom,0px));background:var(--surface);padding:14px 0 calc(4px + env(safe-area-inset-bottom,0px));margin-top:14px}
+html.m .msfoot .pill{flex:1;justify-content:center;padding:13px 16px;font-size:15.5px}
+html.m .msfoot .linkbtn{font-size:14px;color:var(--muted)}
+html.m .msbody .sethero{display:flex;margin:0;gap:12px}
+html.m .msbody .sethero .logo img{max-height:100px}
+
+/* binder on a phone: just the cards and the pocket lines, full width, 3×3 per page, swipe to turn */
+html.m .binder,html.m .binder.single{--dash:color-mix(in srgb,var(--fg) 18%,transparent);display:block;max-width:none;padding:0;margin:4px -6px 14px;background:none;box-shadow:none;border-radius:0}
+html.m .binder .spine{display:none}
+html.m .binder .page{background:none;box-shadow:none;padding:0;border-radius:0}
+html.m .binder .slot{padding:4px}
+html.m .binder .slotcard,html.m .binder .slot.has .shine,html.m .binder .slot .empty{inset:4px}
+html.m .binder .slot .empty{background:var(--surface-2);color:var(--muted)}
+html.m .binder .slot .empty b{color:var(--fg);opacity:.7;font-size:12px}
+html.m .binder .slot .empty span{font-size:10.5px}
+html.m .binder .slot .empty .ghost{opacity:.1}
+html.m .binder .pagenum{color:var(--muted)}
+html.m .pager{padding-bottom:20px}
+html.m .binder.turn-n .page{animation:mturnn .28s cubic-bezier(.2,.8,.2,1)}
+html.m .binder.turn-p .page{animation:mturnp .28s cubic-bezier(.2,.8,.2,1)}
+@keyframes mturnn{from{transform:perspective(1200px) rotateY(-24deg) translateX(30%);transform-origin:left center;opacity:.3}to{transform:none;opacity:1}}
+@keyframes mturnp{from{transform:perspective(1200px) rotateY(24deg) translateX(-30%);transform-origin:right center;opacity:.3}to{transform:none;opacity:1}}
+html.m .binder .pagenum{display:none}
+
+/* card page on a phone (TCG Pocket style): big card on top, sheet slides up and the card shrinks */
+html.m .cpage{position:fixed;inset:0;z-index:100;background:radial-gradient(120% 70% at 50% 0%,color-mix(in srgb,var(--navy) 22%,var(--bg)),var(--bg) 70%);animation:cpin .22s ease}
+@keyframes cpin{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+html.m .cp-top{position:absolute;left:0;right:0;top:0;z-index:2;padding-top:env(safe-area-inset-top,0px);background:inherit;background:radial-gradient(120% 70% at 50% 0%,color-mix(in srgb,var(--navy) 22%,var(--bg)),var(--bg) 70%) fixed;overflow:hidden;pointer-events:none}
+html.m .cp-bar{height:58px;display:flex;align-items:center;gap:10px;padding:0 14px;pointer-events:auto}
+html.m .cp-own{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 14px;border-radius:999px;background:var(--surface);box-shadow:var(--shadow);font-weight:800;color:var(--muted)}
+html.m .cp-own svg{width:20px;height:20px}
+html.m .cp-own.have{color:var(--navy)}
+html.m .cp-own b{color:var(--fg);font-size:16px;font-variant-numeric:tabular-nums}
+html.m .cp-pos{flex:1;text-align:center;color:var(--muted);font:600 13px var(--mono)}
+html.m .cp-ico{display:flex;flex-direction:column;align-items:center;gap:1px;border:0;background:none;color:var(--muted);padding:0;min-width:64px}
+html.m .cp-ico svg{width:28px;height:28px}
+html.m .cp-ico small{font-size:10.5px;font-weight:700}
+html.m .cp-ico.on{color:var(--red)}
+html.m .cp-stage{display:flex;justify-content:center;transform-origin:50% 0;will-change:transform;pointer-events:auto}
+html.m .cp-card{position:relative;aspect-ratio:63/88;border-radius:4.5%/3.3%;overflow:hidden;box-shadow:0 18px 40px rgba(0,0,0,.45);touch-action:none;will-change:transform;-webkit-touch-callout:none}
+html.m .cp-card img{width:100%;height:100%;object-fit:cover;display:block;user-select:none;-webkit-user-select:none}
+html.m .cp-card .fx{opacity:.55}
+html.m .cp-card.touching .fx{opacity:1}
+html.m .cp-card.touching .vw-glare{opacity:1}
+html.m .cp-scroll{position:absolute;inset:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+html.m .cp-sheet{position:relative;background:var(--surface);border-radius:26px 26px 0 0;padding:0 18px calc(110px + env(safe-area-inset-bottom,0px));box-shadow:0 -8px 30px rgba(0,0,0,.25)}
+html.m .cp-head{position:sticky;top:var(--pin);z-index:1;background:var(--surface);border-radius:26px 26px 0 0;margin:0 -18px;padding:18px 18px 12px;border-bottom:1px solid var(--line)}
+html.m .cp-head::before{content:"";position:absolute;top:7px;left:50%;width:40px;height:5px;margin-left:-20px;border-radius:3px;background:var(--line)}
+html.m .cp-acts{display:flex;gap:8px}
+html.m .cp-acts .pill{flex:1;justify-content:center;padding:10px 12px}
+html.m .cp-name{text-align:center;font-size:30px;font-weight:800;letter-spacing:-.02em;margin:22px 0 4px}
+html.m .cp-rar{display:flex;justify-content:center;align-items:center;gap:7px;color:var(--muted);font-weight:700}
+html.m .cp-rar .rsvg{width:20px;height:20px}
+html.m .cp-box{margin:16px 0 0;padding:12px 14px;border-radius:14px;background:var(--surface-2);text-align:center;font-size:13.5px;font-weight:600;color:var(--muted)}
+html.m .cp-set{display:flex;align-items:center;gap:12px;margin:14px 0 0;padding:10px 12px;border-radius:18px;background:var(--surface-2)}
+html.m .cp-logo{flex:1;min-width:0;display:flex;justify-content:center;align-items:center;height:56px}
+html.m .cp-logo img{max-height:56px;max-width:100%;object-fit:contain}
+html.m .cp-num{flex:1;display:flex;align-items:center;justify-content:space-around;gap:8px;height:44px;border-radius:999px;background:var(--surface);padding:0 12px}
+html.m .cp-num b{font:600 17px var(--mono);font-variant-numeric:tabular-nums}
+html.m .cp-rows{margin:20px 0 0;display:flex;flex-direction:column;gap:6px}
+html.m .cp-row{display:grid;grid-template-columns:40% 1fr;border-radius:999px;background:var(--surface-2);overflow:hidden;min-height:44px}
+html.m .cp-row dt{display:flex;align-items:center;justify-content:center;text-align:center;font-weight:700;color:var(--muted);background:color-mix(in srgb,var(--surface-2) 60%,var(--line));padding:8px 10px;font-size:14px}
+html.m .cp-row dd{margin:0;display:flex;align-items:center;gap:6px;padding:8px 16px;font-weight:700;font-size:14.5px;line-height:1.35}
+html.m .cp-row dd .rsvg{width:18px;height:18px}
+html.m .cp-rm{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:5px;background:var(--fg);color:var(--bg);font-weight:800;font-size:13px}
+html.m .cp-hd{margin:22px 0 12px;padding:11px;border-radius:999px;background:var(--surface-2);text-align:center;font-weight:800}
+html.m .cp-rel{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+html.m .cp-relc{border:0;padding:0;background:none;aspect-ratio:63/88;border-radius:4.5%/3.3%;overflow:hidden;box-shadow:var(--shadow)}
+html.m .cp-relc img{width:100%;height:100%;object-fit:cover;display:block}
+html.m .cp-relc.miss img{filter:grayscale(1);opacity:.55}
+html.m .cp-tip{text-align:center;margin-top:20px}
+html.m .cpage .h3{margin:22px 0 10px}
+html.m .cp-close{position:absolute;z-index:3;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));width:64px;height:64px;margin-left:-32px;border-radius:50%;border:0;background:var(--surface);color:var(--fg);display:grid;place-items:center;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+html.m .cp-close svg{width:26px;height:26px}
+html.m .cpage .cp-card.in-r{animation:mswr .2s ease}
+html.m .cpage .cp-card.in-l{animation:mswl .2s ease}
