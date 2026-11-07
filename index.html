@@ -17,6 +17,11 @@
 <link rel="preconnect" href="https://assets.tcgdex.net">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap">
 <link rel="manifest" href="/manifest.webmanifest">
+<script>
+/* phone layout: on for small touch screens, or forced either way from the menu (pc-ui = "m" | "d") */
+(function(){try{var o=localStorage.getItem("pc-ui"),c=matchMedia("(pointer:coarse)").matches&&Math.min(screen.width,screen.height)<=600;
+if(o?o==="m":c)document.documentElement.classList.add("m");else if(c)document.documentElement.classList.add("m-able")}catch(e){}})();
+</script>
 </head>
 <body>
 <header class="top"><div class="wrap">
@@ -32,10 +37,19 @@
   <button class="iconbtn" id="btn-account" hidden aria-label="Mon compte"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></button>
   <button class="iconbtn" id="btn-sync" title="Sauvegarde et synchronisation" aria-label="Sauvegarde et synchronisation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 14-5.3L20 9"/><path d="M20 4v5h-5"/><path d="M20 12a8 8 0 0 1-14 5.3L4 15"/><path d="M4 20v-5h5"/></svg></button>
   <button class="iconbtn" id="btn-theme" title="Mode sombre / clair" aria-label="Changer de thème"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z"/></svg></button>
+  <button class="iconbtn" id="btn-more" aria-label="Plus d'options"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
 </div></header>
 <main id="app"></main>
+<nav class="tabbar" id="tabbar" aria-label="Navigation">
+  <a class="tab" data-nav="series" href="#/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span>Séries</span></a>
+  <a class="tab" data-nav="dex" href="#/pokedex"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h6m6 0h6"/><circle cx="12" cy="12" r="3"/></svg><span>Pokédex</span></a>
+  <a class="tab scan" data-nav="scan" href="#/scan" aria-label="Scanner"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/></svg></i><span>Scanner</span></a>
+  <a class="tab" data-nav="col" href="#/collection"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/><path d="M9 8h5"/></svg><span>Collection</span></a>
+  <a class="tab" data-nav="union" href="#/union"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3"/><circle cx="16.5" cy="9.5" r="2.5"/><path d="M2.5 19c.8-3.2 3-5 5.5-5s4.7 1.8 5.5 5"/><path d="M14 14.3c.8-.5 1.6-.8 2.5-.8 2 0 3.7 1.4 4.3 3.8"/></svg><span>Union Room</span></a>
+</nav>
 <footer class="site-foot"><div class="wrap">
   <button class="pill ghost" id="btn-install" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>Installer l'app</button>
+  <button class="linkbtn" id="btn-mobile" hidden>Passer à la version téléphone</button>
   <p>PokéClasseur est une app de fan, non officielle. Elle n'est ni affiliée, ni approuvée, ni sponsorisée par Nintendo, Creatures, GAME FREAK ou The Pokémon Company. Pokémon et les noms associés sont des marques de leurs propriétaires respectifs.</p>
   <p>Données et images des cartes : <a href="https://tcgdex.dev" target="_blank" rel="noopener">TCGdex</a> (licence MIT). Prix indicatifs : Cardmarket via TCGdex. Logos d'extensions : <a href="https://www.pokecardex.com" target="_blank" rel="noopener">Pokécardex</a>. Sprites : <a href="https://pokeapi.co" target="_blank" rel="noopener">PokéAPI</a>.</p>
 </div></footer>

@@ -1,0 +1,122 @@
+/* Phone layout. Every rule is under html.m (set in index.html for small touch screens),
+   so the computer version stays exactly as it is. Only the two "hidden by default" rules below are global. */
+.tabbar,#btn-more{display:none}
+
+html.m{--tabh:62px;-webkit-tap-highlight-color:transparent}
+html.m body{padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px));overscroll-behavior-y:none}
+html.m .wrap{padding-inline:14px}
+
+/* header: logo + account + menu; the pages move to the tab bar */
+html.m .top .wrap{height:50px;gap:4px}
+html.m .top .navbtn,html.m #btn-sync,html.m #btn-theme{display:none}
+html.m .top .brand{margin-right:auto;font-size:17px}
+html.m .top .brand svg{width:26px;height:26px}
+html.m .top .brand span{display:inline}
+html.m #btn-more{display:grid}
+html.m .top .iconbtn{width:40px;height:40px}
+html.m .top .iconbtn svg{width:21px;height:21px}
+html.m .site-foot{display:none}
+
+/* bottom tab bar */
+html.m .tabbar{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;z-index:60;height:calc(var(--tabh) + env(safe-area-inset-bottom,0px));padding:0 4px env(safe-area-inset-bottom,0px);background:color-mix(in srgb,var(--surface) 94%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line)}
+html.m .tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-decoration:none;color:var(--muted);font-size:10.5px;font-weight:700;letter-spacing:.01em;min-width:0}
+html.m .tab span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+html.m .tab svg{width:24px;height:24px}
+html.m .tab.on{color:var(--navy)}
+html.m .tab.on svg{stroke-width:2.4}
+html.m .tab:active{transform:scale(.94)}
+html.m .tab.scan i{display:grid;place-items:center;width:54px;height:54px;margin-top:-26px;border-radius:50%;background:var(--navy);color:var(--navy-ink);box-shadow:0 6px 18px color-mix(in srgb,var(--navy) 45%,transparent),0 0 0 4px var(--bg)}
+html.m .tab.scan i svg{width:26px;height:26px}
+html.m .tab.scan.on{color:var(--navy)}
+html.m .tab.scan.on i{box-shadow:0 6px 18px color-mix(in srgb,var(--navy) 45%,transparent),0 0 0 4px var(--bg),0 0 0 6px var(--navy)}
+html.m .toast{bottom:calc(var(--tabh) + 14px + env(safe-area-inset-bottom,0px))}
+
+/* page heads */
+html.m .band{padding-block:16px 16px}
+html.m h1{font-size:26px}
+html.m .band .sub,html.m .band > .wrap > .note{font-size:13.5px;margin:2px 0 0}
+html.m .crumb{margin-bottom:4px;font-size:13.5px}
+
+/* key figures: one swipeable row of small tiles instead of a tall grid */
+html.m .stats{display:flex;overflow-x:auto;gap:8px;margin:12px -14px 0;padding:2px 14px 4px;scroll-snap-type:x proximity;scroll-padding-inline:14px;scrollbar-width:none;max-width:none}
+html.m .stats::-webkit-scrollbar,html.m .rar::-webkit-scrollbar,html.m .seg::-webkit-scrollbar{display:none}
+html.m .stat{flex:0 0 auto;min-width:118px;max-width:150px;padding:9px 12px;scroll-snap-align:start}
+html.m .stat b{font-size:19px}
+html.m .stat span{font-size:12px;line-height:1.3;display:block}
+
+/* toolbars: big touch targets, search on its own line */
+html.m .toolbar{gap:8px;padding-block:12px 10px}
+html.m .toolbar .search{flex:1 1 100%;order:-1;height:46px}
+html.m .search input{font-size:16px}   /* 16px: iPhone does not zoom into the field */
+html.m .toggle{height:42px;padding:0 12px;font-size:14px;flex:1 1 auto;justify-content:center}
+
+/* home: series list */
+html.m .serie{padding:14px}
+html.m .serie .sets{gap:10px}
+
+/* set page: smaller hero, rarity filters in one swipeable row */
+html.m .titlecenter{font-size:24px;margin:0 0 2px}
+html.m .sethero{gap:10px;margin:6px auto 0}
+html.m .sethero .logo{min-height:0;flex-basis:100%}
+html.m .sethero .logo img{max-height:96px}
+html.m .sethero .meta{gap:8px;width:100%}
+html.m .sethero .chips{gap:6px}
+html.m .sethero .chip{padding:5px 10px;font-size:12.5px;border-radius:10px;gap:5px}
+html.m .sethero .chip svg{width:14px;height:14px}
+html.m .progress{padding:9px 12px;gap:10px}
+html.m .progress .t{font-size:17px}
+html.m .progress .s{font-size:12px}
+html.m .herobtns{gap:8px;width:100%}
+html.m .herobtns .pill{flex:1;justify-content:center;padding:10px 12px}
+html.m .rar{flex-wrap:nowrap;overflow-x:auto;margin:0 -14px;padding:2px 14px;width:calc(100% + 28px);scrollbar-width:none}
+html.m .rbtn{flex:none;min-width:44px;height:44px}
+html.m .row2{gap:8px;padding-bottom:12px}
+html.m .row2 .seg{width:100%}
+html.m .row2 .seg button{flex:1;justify-content:center;padding:9px 8px;font-size:13.5px}
+
+/* cards: bottom sheet, swipe left / right to change card */
+html.m .modal{align-items:flex-end;padding:0;padding-top:calc(env(safe-area-inset-top,0px) + 24px)}
+html.m .sheet{border-radius:22px 22px 0 0;max-height:100%;padding:22px 16px calc(18px + env(safe-area-inset-bottom,0px));gap:14px;grid-template-columns:1fr;animation:msheet .22s cubic-bezier(.2,.8,.2,1)}
+html.m .sheet::before{content:"";position:absolute;top:8px;left:50%;width:40px;height:5px;margin-left:-20px;border-radius:3px;background:var(--line)}
+html.m .sheet .close{top:10px;right:10px}
+html.m .sheet .big{display:flex;justify-content:center}
+html.m .sheet .big .holo{max-height:46vh;width:auto;aspect-ratio:63/88;max-width:78%}
+html.m .sheet .info h2{font-size:24px;margin-top:0}
+html.m .sheet .navrow{display:flex;flex-wrap:wrap;gap:8px}
+html.m .sheet .navrow .pill{flex:1 1 auto;justify-content:center}
+html.m .sheet .navrow #m-prev,html.m .sheet .navrow #m-next{flex:0 0 52px}
+html.m .sheet.in-r{animation:mswr .2s ease}
+html.m .sheet.in-l{animation:mswl .2s ease}
+@keyframes msheet{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+@keyframes mswr{from{transform:translateX(24px);opacity:.6}to{transform:none;opacity:1}}
+@keyframes mswl{from{transform:translateX(-24px);opacity:.6}to{transform:none;opacity:1}}
+
+/* "more" menu */
+html.m .moresheet{display:flex;flex-direction:column;gap:2px;padding-top:26px}
+html.m .mrow,html.m .mabout summary{display:flex;align-items:center;gap:14px;width:100%;border:0;background:none;text-align:left;padding:14px 8px;border-radius:12px;font-weight:700;font-size:16px;cursor:pointer;list-style:none}
+html.m .mabout summary::-webkit-details-marker{display:none}
+html.m .mrow:active,html.m .mabout summary:active{background:var(--surface-2)}
+html.m .mrow svg,html.m .mabout summary svg{width:22px;height:22px;color:var(--navy);flex:none}
+html.m .mabout p{color:var(--muted);font-size:12.5px;line-height:1.5;margin:4px 8px 8px}
+html.m .mclose{margin-top:8px;justify-content:center}
+
+/* scanner: the camera fills the screen between the header and the tab bar */
+html.m .scanpage{padding-top:10px;padding-bottom:12px}
+html.m .scanhead h1{font-size:22px}
+html.m .scanhead .note{display:none}
+html.m .scanbox{height:calc(100dvh - 50px - var(--tabh) - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - 136px);min-height:300px;border-radius:16px;margin-top:8px}
+html.m .scanbar{margin-top:10px}
+html.m .scanbar .manual input{font-size:16px}
+
+/* collection */
+html.m .colset .colhead{gap:10px}
+
+/* Union Room: the side column goes under, tabs scroll */
+html.m .unwrap{padding-block:14px 30px;gap:16px}
+html.m .untabs{margin:12px -14px 0;padding:0 14px}
+html.m .untabs a{padding:10px 13px;font-size:14px}
+
+/* full-screen viewer stays above the tab bar */
+html.m .viewer{z-index:200}
+html.m .mrow{justify-content:flex-start;color:var(--fg)}
+html.m .mrow span,html.m .mabout summary span{flex:1;text-align:left}

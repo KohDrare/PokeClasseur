@@ -7,6 +7,7 @@ import "./styles/pages.css";
 import "./styles/pokedex.css";
 import "./styles/products-stats.css";
 import "./styles/union.css";
+import "./styles/mobile.css";     // phone layout, only under html.m
 
 import "./state/prefs.js";        // applies the theme + theme button
 import "./features/variants.js";  // pointer tracking for the card shine
@@ -14,6 +15,7 @@ import "./data/tcgdex.js";        // image / logo fallback handlers on window
 import "./features/sync.js";      // backup / sync button (code or file)
 import "./cloud/account.js";      // account + cloud sync (only when Supabase is configured)
 import "./pwa.js";                // offline service worker + "Installer l'app"
+import "./mobile.js";             // phone layout: tab bar, menu, swipes
 
 import { $ } from "./lib/core.js";
 import { LS } from "./lib/storage.js";
