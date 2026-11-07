@@ -388,3 +388,5 @@
 .sorth{margin:18px 0 8px;text-align:center;font-size:15px}
 .sortlang{width:100%}
 .sortlang button{flex:1;justify-content:center}
+.scanset{display:flex;align-items:center;gap:10px;font-weight:700;font-size:14px;color:var(--muted);margin-bottom:8px;width:100%}
+.scanset select{flex:1;min-width:0;height:42px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:0 10px;font:inherit;font-size:15px}

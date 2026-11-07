@@ -3,7 +3,9 @@ import { openViewer } from "../components/viewer.js";
 import { PCX } from "../data/pokecardex-map.js";
 import { UPCOMING, scanBase, upcomingVariants } from "../data/set-patches.js";
 import { priceHint } from "../data/price-hints.js";
-import { compact, getJSON, img, loadSeries, peekSet } from "../data/tcgdex.js";
+import { compact, getJSON, img, loadSeries, loadSet, peekSet } from "../data/tcgdex.js";
+import { LS } from "../lib/storage.js";
+import { codeScore } from "../scan/match.js";
 import { VARIANT_LABEL, eur, priceOf } from "../features/variants.js";
 import { $, API, esc } from "../lib/core.js";
 import { setNav, toast } from "../lib/ui.js";
@@ -13,12 +15,13 @@ import { qtyOf, setQty } from "../state/collection.js";
 import { S } from "../state/shared.js";
 import { symHTML } from "../features/rarity.js";
 
-let stream = null, timer = null, busy = false, paused = false, added = 0;
+let stream = null, timer = null, busy = false, paused = false, added = 0, itimer = null;
+const ocrSets = new Map();   // extensions the text reader has seen (code read on the card) → when
 const DEBUG = (() => { try { return localStorage.getItem("pc-scandebug") === "1"; } catch { return false; } })();
 
 /* called by the router on every page change */
 export function stopScanner() {
-  clearTimeout(timer); timer = null; paused = true;
+  clearTimeout(timer); timer = null; clearTimeout(itimer); itimer = null; paused = true;
   if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
 }
 
@@ -32,6 +35,11 @@ function scanSets() {
 
 /* finds the card a guess points to (one set listing + one card request, or the data already on this device) */
 async function findCard(g) {
+  if (g.id) {   // found by its picture: we already know the exact card
+    const s = await loadSet(g.setId).catch(() => null);
+    const c = s?.cards.find(x => x.id === g.id);
+    if (c) return { ...c, v: c.v?.length ? c.v : ["normal"], img: c.img || scanBase(g.setId, c.n) };
+  }
   const local = UPCOMING[g.setId] ? { cards: UPCOMING[g.setId].cards.map(c => ({ ...c, id: `${g.setId}-${c.n}`, setId: g.setId, v: upcomingVariants(c), p: priceHint(g.setId, c.n), ok: 1 })) } : await peekSet(g.setId);
   const known = local?.cards?.find(c => !c.linked && !c.grp && sameNumber(c.src || c.n, g.num));
   if (known?.ok && known.v?.length) return { ...known, img: known.img || scanBase(g.setId, known.n) };
@@ -51,7 +59,7 @@ export async function renderScan() {
   setNav("scan");
   const app = $("#app");
   app.innerHTML = `<div class="wrap scanpage">
-    <div class="scanhead"><h1>Scanner une carte</h1><p class="note">Place la carte dans le cadre, bien à plat et nette en bas : l'app lit le code de l'extension et le numéro (par ex. « DLR 084/103 »).</p></div>
+    <div class="scanhead"><h1>Scanner une carte</h1><p class="note">Place la carte dans le cadre : l'app la reconnaît à son image, ou à son code et son numéro (par ex. « DLR 084/103 »). Choisis l'extension en dessous pour aller encore plus vite.</p></div>
     <div class="scanbox" id="scanbox">
       <video id="scanvid" playsinline muted autoplay></video>
       <div class="scanframe" id="scanframe"><span class="zone"></span></div>
@@ -59,6 +67,7 @@ export async function renderScan() {
       <button class="iconbtn torch" id="scantorch" hidden aria-label="Lampe">${BOLT}</button>
     </div>
     <div class="scanbar">
+      <label class="scanset">Extension <select id="scanset"></select></label>
       <form class="manual" id="scanmanual"><input id="scanq" placeholder="Ou tape le code et le numéro : DLR 084" autocomplete="off" autocapitalize="characters"><button class="pill">Chercher</button></form>
       <span class="note" id="scancount"></span>
     </div>
@@ -68,6 +77,7 @@ export async function renderScan() {
 
   import("../scan/ocr.js").then(m => m.getReaders()).catch(() => {});   // start the readers now, while the camera opens
   if (!S.SERIES?.length) { try { S.SERIES = await loadSeries(); } catch { /* the manual search will say so */ } }
+  fillSetPicker();
   if (!navigator.mediaDevices?.getUserMedia) { state("Caméra indisponible ici. Tu peux taper le code et le numéro ci-dessous.", "bad"); return; }
   try {
     stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
@@ -80,7 +90,70 @@ export async function renderScan() {
   const track = stream.getVideoTracks()[0], caps = track.getCapabilities?.() || {};
   if (caps.torch) { const b = $("#scantorch"); b.hidden = false; let on = false; b.onclick = () => { on = !on; track.applyConstraints({ advanced: [{ torch: on }] }).catch(() => {}); b.classList.toggle("on", on); }; }
   state("Chargement de la lecture…");
+  prepare(candidateSets());
   startLoop();
+  startPictureLoop();
+}
+
+/* which extensions the picture matcher compares with: the one you chose, or (auto) the last one scanned,
+   the newest one, and any whose code the text reader saw */
+const SETKEY = "pc-scanset";
+function fillSetPicker() {
+  const sel = $("#scanset"); if (!sel) return;
+  const cur = LS.get(SETKEY, "auto");
+  sel.innerHTML = `<option value="auto">Automatique</option>` + (S.SERIES || []).map(se => `<optgroup label="${esc(se.name)}">${[...se.sets].reverse().map(t => `<option value="${esc(t.id)}" ${t.id === cur ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</optgroup>`).join("");
+  sel.value = [...sel.options].some(o => o.value === cur) ? cur : "auto";
+  sel.onchange = () => { LS.set(SETKEY, sel.value); if (sel.value !== "auto") prepare([sel.value]); };
+}
+function newestSet() {
+  const all = (S.SERIES || []).flatMap(se => se.sets).filter(t => (SETMETA[t.id]?.d || "") <= new Date().toISOString().slice(0, 10));
+  return all.sort((a, b) => (SETMETA[b.id]?.d || "").localeCompare(SETMETA[a.id]?.d || ""))[0]?.id;
+}
+function candidateSets() {
+  const pick = LS.get(SETKEY, "auto");
+  if (pick !== "auto") return [pick];
+  const ids = [LS.get("pc-scanlast", ""), newestSet(), ...[...ocrSets.entries()].sort((a, b) => b[1] - a[1]).map(x => x[0])];
+  return [...new Set(ids.filter(Boolean))].slice(0, 4);
+}
+const ready = new Map();   // setId → prints
+async function prepare(ids) {
+  const { setPrints } = await import("../scan/imgmatch.js");
+  for (const id of ids) {
+    if (ready.has(id)) continue;
+    try {
+      const pr = await setPrints(id, (k, n) => { if (k % 10 === 0 && !paused && !ready.size) state(`Préparation de ${setName(id)}… ${Math.round(k / n * 100)} %`); });
+      ready.set(id, pr);
+    } catch { /* offline: the text reader still works */ }
+  }
+}
+/* picture loop: several times a second, much faster than reading the text */
+function startPictureLoop() {
+  const video = $("#scanvid");
+  let last = null, streak = 0;
+  const tick = async () => {
+    if (paused || !stream) return;
+    try {
+      const ids = candidateSets();
+      prepare(ids);
+      const sets = ids.filter(id => ready.has(id)).map(id => ({ setId: id, prints: ready.get(id) }));
+      if (sets.length && video?.videoWidth) {
+        const { matchFrame } = await import("../scan/imgmatch.js");
+        const { frameInVideo } = await import("../scan/ocr.js");
+        const m = matchFrame(video, frameInVideo(video, $("#scanframe")), sets);
+        if (DEBUG && m) console.log("[scan] picture:", m.id, m.d.toFixed(3), "gap", m.gap.toFixed(3));
+        const good = m && m.d < 0.6 && m.gap > 0.2;
+        streak = good && last === m.id ? streak + 1 : good ? 1 : 0;
+        last = good ? m.id : null;
+        if (streak >= 2 && !paused) {   // the same card on two frames in a row
+          const num = +(String(m.n).match(/(\d+)$/)?.[1] || 0);
+          await show([], { setId: m.setId, id: m.id, num });
+          return;
+        }
+      }
+    } catch (e) { if (DEBUG) console.warn("[scan] picture", e); }
+    if (!paused) itimer = setTimeout(tick, 120);
+  };
+  tick();
 }
 
 function state(txt, cls = "") { const s = $("#scanstate"); if (s) { s.textContent = txt; s.className = "scanstate " + cls; } }
@@ -95,7 +168,8 @@ async function lookup(text, manual) {
 }
 
 async function show(others, g) {
-  paused = true; clearTimeout(timer);
+  paused = true; clearTimeout(timer); clearTimeout(itimer);
+  LS.set("pc-scanlast", g.setId);
   state("Carte trouvée !", "good");
   const box = $("#scanresult");
   box.innerHTML = `<div class="scancard loading">Recherche de la carte…</div>`;
@@ -135,9 +209,10 @@ function resume() {
   $("#scanresult").innerHTML = "";
   document.querySelector(".scanpage")?.classList.remove("found");
   if (!stream) { state("Caméra arrêtée : recharge la page pour la relancer.", "bad"); return; }
-  paused = false; state("Cherche le bas de la carte…");
+  paused = false; state("Cherche la carte…");
   scrollTo({ top: 0 });
   startLoop();
+  startPictureLoop();
 }
 /* reading loop: one frame at a time, a card is shown once the reading is sure */
 function startLoop() {
@@ -156,14 +231,16 @@ function startLoop() {
         // each clean-up is one reading; a card is sure when two readings agree (the same frame read two ways, or two frames)
         let sure = null, guesses = [];
         for (const text of texts) {
-          const g = guessCards(parseScan(text), sets);
+          const parsed = parseScan(text);
+          for (const st of sets) if (st.code?.length >= 3 && parsed.words.some(w => codeScore(w, st.code) >= 2)) ocrSets.set(st.id, Date.now());
+          const g = guessCards(parsed, sets);
           if (!guesses.length) guesses = g;
           sure = sure || voter.add(g);
         }
         if (!guesses.length) guesses = guessCards(parseScan(texts.join("\n")), sets);
         if (DEBUG) console.log("[scan] read:", JSON.stringify(texts.join(" | ")), "→", guesses.slice(0, 3).map(x => x.setId + " " + x.num).join(", "), Math.round(performance.now() - t0) + " ms");
         if (sure && !paused) { voter.reset(); busy = false; await show(guesses.filter(x => x.setId !== sure.setId || x.num !== sure.num).slice(0, 4), sure); return; }
-        state(guesses.length ? "Je crois voir une carte, garde-la immobile…" : "Cherche le bas de la carte…");
+        if (!paused) state(guesses.length ? "Je crois voir une carte, garde-la immobile…" : "Cherche la carte…");
       } catch (e) {
         console.warn("[scan]", e);
         state("La lecture n'a pas pu démarrer. Vérifie ta connexion puis recharge la page.", "bad");
