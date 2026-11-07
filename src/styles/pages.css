@@ -126,7 +126,7 @@
 .scanframe{position:absolute;left:50%;top:50%;aspect-ratio:63/88;width:min(94cqw,92cqh * 63 / 88);height:auto;transform:translate(-50%,-50%);border:3px solid #fff;border-radius:16px;box-shadow:0 0 0 2000px rgba(5,8,20,.55)}
 .scanframe .zone{position:absolute;left:0;bottom:0;width:62%;height:14%;border:2px dashed #ffd84d;border-radius:0 8px 0 12px}
 .scanstate{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);max-width:calc(100% - 28px);padding:8px 14px;border-radius:999px;background:rgba(10,14,30,.8);color:#fff;font-weight:600;font-size:14px;text-align:center}
-.scanstate.good{background:#1f9d55}.scanstate.bad{background:#b3261e;border-radius:14px}
+.scanstate.good{background:#1f9d55}.scanstate.warn{background:#b7791f}.scanstate.bad{background:#b3261e;border-radius:14px}
 .scanbox .torch{position:absolute;right:12px;top:12px;background:rgba(10,14,30,.6);color:#fff}
 .scanbox .torch.on{background:#ffd84d;color:#1a1a1a}
 .scanbox .torch svg{width:20px;height:20px}

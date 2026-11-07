@@ -144,7 +144,7 @@ function prepare(ids) {
 /* picture loop: several times a second, much faster than reading the text */
 function startPictureLoop() {
   const video = $("#scanvid");
-  let last = null, streak = 0, lastIds = "";
+  let last = null, streak = 0, lastIds = "", warned = false;
   const tick = async () => {
     if (paused || !stream) return;
     try {
@@ -157,7 +157,12 @@ function startPictureLoop() {
         const { frameInVideo } = await import("../scan/ocr.js");
         const m = matchFrame(video, frameInVideo(video, $("#scanframe")), sets);
         if (DEBUG && m) console.log("[scan] picture:", m.id, m.d.toFixed(3), "gap", m.gap.toFixed(3));
-        const good = m && m.d < 0.6 && m.gap > 0.2;
+        // reflections of a shiny card are left out of the comparison (imgmatch), so a slightly looser rule is safe
+        const good = m && m.d < 0.5 && m.gap > 0.12;
+        const shine = m && m.glare > 0.2 && !good;
+        if (shine) state("Reflet sur la carte : incline-la un peu pour éviter la lumière", "warn");
+        else if (warned) state("Cherche la carte…");
+        warned = shine;
         streak = good && last === m.id ? streak + 1 : good ? 1 : 0;
         last = good ? m.id : null;
         if (streak >= 2 && !paused) {   // the same card on two frames in a row
