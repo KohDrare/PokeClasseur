@@ -69,14 +69,15 @@ export async function openPricePage(c, info, startV, onChange) {
       </div>
       ${fair ? `
         <div class="pp-main">
-          <div class="pp-lbl">Prix estimé · comme neuve</div>
-          <div class="pp-val">${eur(fair)}</div>
-          ${f.lo && f.hi && f.hi - f.lo > 0.01 ? `<div class="note">Fourchette récente : ${eur(f.lo)} – ${eur(f.hi)}</div>` : ""}
+          ${(() => { const k = CONDITIONS.find(x => x.k === (owned ? cond : "NM")); return `
+          <div class="pp-lbl">Prix estimé · <span class="pp-st" style="--cc:${k.col}">${k.k} · ${k.fr.toLowerCase()}</span></div>
+          <div class="pp-val">${eur(Math.max(0.02, fair * k.f))}</div>
+          ${k.k !== "NM" ? `<div class="note">Comme neuve : ${eur(fair)}</div>` : ""}`; })()}
+          ${f.lo && f.hi && f.hi - f.lo > 0.01 ? `<div class="note">Fourchette récente (comme neuve) : ${eur(f.lo)} – ${eur(f.hi)}</div>` : ""}
           ${f.hint ? `<div class="note">Prix relevé à la main le ${new Date(PRICE_DATE[c.setId] || Date.now()).toLocaleDateString("fr-BE", { day: "numeric", month: "long" })} (ventes Cardmarket) : l'extension est trop récente pour la base de prix.</div>` : ""}
         </div>
         <div class="pp-h">${owned ? "État de ta carte <small>touche pour le changer</small>" : "Selon l'état"}</div>
         <div class="pp-conds">${CONDITIONS.map(k => `<button class="pp-cond ${owned && k.k === cond ? "on" : ""}" data-k="${k.k}" style="--cc:${k.col}" ${owned ? "" : "disabled"}><span class="pp-k">${k.k}</span><span class="pp-cl">${k.fr}<small>${k.l} · ${Math.round(k.f * 100)} %</small></span><b>${eur(Math.max(0.02, fair * k.f))}</b>${owned && k.k === cond ? `<i class="pp-mine">Ma carte</i>` : ""}</button>`).join("")}</div>
-        ${owned && cond !== "NM" ? `<p class="note pp-condnote">Ta collection compte cette carte à ${eur(Math.max(0.02, fair * CONDITIONS.find(k => k.k === cond).f))} (état ${cond}).</p>` : ""}
         ${bars(f)}
         ${f.hint ? "" : `        <div class="pp-h">Détail Cardmarket</div>
         <div class="pp-rows">

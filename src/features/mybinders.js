@@ -54,7 +54,8 @@ export function openBinderEditor(i, items, refresh) {
   const ARROW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg>';
   const byId = new Map(items.map(x => [x.c.id, x]));
   const root = $("#modal-root");
-  const close = () => { root.innerHTML = ""; document.body.style.overflow = ""; removeEventListener("keydown", key); };
+  const offs = [];   // listeners to remove when the editor closes
+  const close = () => { root.innerHTML = ""; document.body.style.overflow = ""; removeEventListener("keydown", key); offs.forEach(f => f()); };
   const key = e => { if (e.key === "Escape") close(); };
   addEventListener("keydown", key); document.body.style.overflow = "hidden";
   root.innerHTML = `<div class="modal" id="mdl"><div class="sheet beditor" role="dialog" aria-modal="true" aria-label="Classeur">
@@ -66,12 +67,19 @@ export function openBinderEditor(i, items, refresh) {
       <div><div class="be-lbl">Couleur</div><div class="be-colors" id="be-colors">${BINDER_COLORS.map(c => `<button class="bv-sw ${c === cur.color ? "on" : ""}" data-c="${c}" style="background:${c}" aria-label="Couleur ${c}"></button>`).join("")}</div></div>
       <div><div class="be-lbl">Affichage</div><div class="seg" id="be-mode"><button data-m="pages" class="${cur.mode === "pages" ? "on" : ""}">Pages</button><button data-m="scroll" class="${cur.mode === "scroll" ? "on" : ""}">Défilement</button></div></div>
     </div>
-    <div class="be-lbl be-cards">Cartes <em id="be-n"></em><span class="note">La première carte choisie fait la couverture.</span></div>
+    <div class="seg be-tabs" id="be-tabs"><button data-t="pick" class="on">Choisir les cartes <em id="be-n"></em></button><button data-t="order">Ordre</button></div>
+    <div id="be-pick">
     <label class="search" for="be-q">${ICON.search}<input id="be-q" placeholder="Rechercher dans ma collection" autocomplete="off"></label>
     <div class="be-tools"><span class="be-t">Trier</span><div class="be-chips" id="be-sort"></div></div>
     ${groups.length > 1 ? `<div class="be-tools"><span class="be-t">Rareté</span><div class="be-chips" id="be-rar">${groups.map(g => `<button class="be-chip" data-r="${esc(g.k)}" title="${esc(g.r)}">${symHTML(g.r)}</button>`).join("")}</div></div>` : ""}
     <div class="be-bulk"><button class="linkbtn" id="be-all"></button><button class="linkbtn" id="be-none">Tout retirer</button></div>
     <div class="be-grid" id="be-grid"></div>
+    </div>
+    <div id="be-order" hidden>
+      <p class="note be-hint">Maintiens une carte puis fais-la glisser à sa place (sur ordinateur : clique et glisse). La première est la couverture.</p>
+      <div class="be-tools"><span class="be-t">Ranger</span><div class="be-chips" id="be-auto"><button class="be-chip" data-a="rar">Plus rares d'abord</button><button class="be-chip" data-a="price">Plus chères d'abord</button><button class="be-chip" data-a="num">Par numéro</button><button class="be-chip" data-a="rev">Inverser</button></div></div>
+      <div class="be-grid bo-grid" id="bo-grid"></div>
+    </div>
     <div class="be-foot">${i == null ? "" : `<button class="linkbtn be-del" id="be-del">Supprimer</button>`}<button class="pill" id="be-save">Enregistrer</button></div>
   </div></div>`;
   const grid = $("#be-grid");
@@ -118,6 +126,83 @@ export function openBinderEditor(i, items, refresh) {
     if (del.dataset.sure !== "1") { del.dataset.sure = "1"; del.textContent = "Supprimer pour de bon ?"; return; }
     const list = myBinders(); list.splice(i, 1); saveAll(list); close(); refresh?.(); toast("Classeur supprimé");
   };
+  /* ---- order: drag the chosen cards (long press on a phone), or let the app arrange them ---- */
+  const ogrid = $("#bo-grid");
+  const cardOf = id => byId.get(id)?.c || cur.cards.find(c => c.id === id);
+  const drawOrder = () => {
+    ogrid.innerHTML = picked.map((id, k) => { const c = cardOf(id); return c ? `<div class="bo-item" data-id="${esc(id)}">${imgTag(c, "low")}<span class="be-k">${k === 0 ? "★" : k + 1}</span></div>` : ""; }).join("") || `<p class="note">Choisis d'abord des cartes.</p>`;
+  };
+  const renumber = () => ogrid.querySelectorAll(".bo-item").forEach((n, k) => { n.querySelector(".be-k").textContent = k === 0 ? "★" : k + 1; });
+  $("#be-tabs").onclick = e => {
+    const b = e.target.closest("[data-t]"); if (!b) return;
+    [...e.currentTarget.children].forEach(x => x.classList.toggle("on", x === b));
+    const order = b.dataset.t === "order";
+    $("#be-pick").hidden = order; $("#be-order").hidden = !order;
+    if (order) drawOrder(); else drawGrid();
+  };
+  $("#be-auto").onclick = e => {
+    const b = e.target.closest("[data-a]"); if (!b) return;
+    if (b.dataset.a === "rev") picked.reverse();
+    else {
+      const its = picked.map(id => byId.get(id) || { c: cardOf(id), info: {}, q: 1, val: 0, unit: 0, no: 0, date: "" }).filter(x => x.c);
+      const d = b.dataset.a === "num" ? 1 : -1;
+      picked = sortItems(its, b.dataset.a, d).map(x => x.c.id);
+    }
+    drawOrder();
+  };
+  let drag = null, timer = 0;
+  const sheet = root.querySelector(".beditor");
+  const startDrag = (item, x, y) => {
+    const r = item.getBoundingClientRect();
+    const ghost = item.cloneNode(true); ghost.className = "bo-item bo-ghost";
+    Object.assign(ghost.style, { width: r.width + "px", height: r.height + "px", left: r.left + "px", top: r.top + "px" });
+    document.body.append(ghost);
+    item.classList.add("bo-hole");
+    drag = { item, ghost, dx: x - r.left, dy: y - r.top };
+    navigator.vibrate?.(15);
+  };
+  const moveDrag = (x, y) => {
+    const { item, ghost, dx, dy } = drag;
+    ghost.style.left = x - dx + "px"; ghost.style.top = y - dy + "px";
+    const over = document.elementFromPoint(x, y)?.closest(".bo-item:not(.bo-ghost)");
+    if (over && over !== item && over.parentElement === ogrid) {
+      const r = over.getBoundingClientRect(), after = x > r.left + r.width / 2;
+      ogrid.insertBefore(item, after ? over.nextSibling : over); renumber();
+    }
+    // scroll the sheet when the card is held near its top or bottom
+    const sr = sheet.getBoundingClientRect();
+    drag.auto = y < sr.top + 70 ? -8 : y > sr.bottom - 70 ? 8 : 0;
+  };
+  const endDrag = () => {
+    clearTimeout(timer);
+    if (!drag) return;
+    drag.ghost.remove(); drag.item.classList.remove("bo-hole");
+    picked = [...ogrid.querySelectorAll(".bo-item")].map(n => n.dataset.id);
+    drag = null; renumber();
+  };
+  const iv = setInterval(() => { if (drag?.auto) sheet.scrollTop += drag.auto; }, 16);
+  offs.push(() => { clearInterval(iv); drag?.ghost.remove(); });
+  let p0 = null;
+  ogrid.addEventListener("pointerdown", e => {
+    const item = e.target.closest(".bo-item"); if (!item) return;
+    p0 = { x: e.clientX, y: e.clientY, item };
+    if (e.pointerType === "mouse") { e.preventDefault(); return; }
+    timer = setTimeout(() => { if (p0) startDrag(item, p0.x, p0.y); }, 260);   // long press on touch screens
+  });
+  const onMove = e => {
+    if (drag) { moveDrag(e.clientX, e.clientY); return; }
+    if (!p0) return;
+    const moved = Math.hypot(e.clientX - p0.x, e.clientY - p0.y);
+    if (e.pointerType === "mouse" && moved > 4) startDrag(p0.item, p0.x, p0.y);
+    else if (e.pointerType !== "mouse" && moved > 10) { clearTimeout(timer); p0 = null; }   // it was a scroll
+  };
+  const onUp = () => { p0 = null; endDrag(); };
+  addEventListener("pointermove", onMove); addEventListener("pointerup", onUp); addEventListener("pointercancel", onUp);
+  offs.push(() => { removeEventListener("pointermove", onMove); removeEventListener("pointerup", onUp); removeEventListener("pointercancel", onUp); });
+  // while dragging with a finger, the page must not scroll
+  ogrid.addEventListener("touchmove", e => { if (drag) e.preventDefault(); }, { passive: false });
+  ogrid.addEventListener("contextmenu", e => e.preventDefault());
+
   drawGrid();
   if (i == null) setTimeout(() => $("#be-name")?.focus(), 50);
 }

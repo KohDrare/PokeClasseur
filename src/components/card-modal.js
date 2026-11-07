@@ -8,7 +8,7 @@ import { askMotion, attachTilt } from "../features/tilt.js";
 import { renderCollection } from "../pages/collection.js";
 import { renderSetStats } from "../pages/set-stats.js";
 import { drawCards, refreshCounts } from "../pages/set.js";
-import { isFav, ownedAny, qtyOf, setFav, setQty } from "../state/collection.js";
+import { condFactor, isFav, ownedAny, qtyOf, setFav, setQty } from "../state/collection.js";
 import { S } from "../state/shared.js";
 import { unToggleWish } from "../union/feed.js";
 import { regionOf, sprite } from "../pages/pokedex.js";
@@ -119,7 +119,7 @@ export function openCard(card, seq, startV) {
       </div>
       <div class="cp-scroll" id="cp-scroll"><div class="cp-sheet" id="cp-sheet">
         <div class="cp-head">
-          <div class="cp-acts"><button class="pill cp-price" id="m-price"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M17.5 6.5A7 7 0 1 0 17.5 17.5"/><path d="M4 10.5h9M4 13.5h9"/></svg> Prix${priceOf(c, pv) ? ` · ${eur(priceOf(c, pv))}` : ""}</button></div>
+          <div class="cp-acts"><button class="pill cp-price" id="m-price"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M17.5 6.5A7 7 0 1 0 17.5 17.5"/><path d="M4 10.5h9M4 13.5h9"/></svg> Prix${priceOf(c, pv) ? ` · ${eur(priceOf(c, pv) * condFactor(c.id))}` : ""}</button></div>
         </div>
         <h2 class="cp-name">${esc(c.name)}</h2>
         <div class="cp-rar">${c.ok ? symHTML(c.r) : ""}<span>${esc(rarLabel)}</span></div>
@@ -171,7 +171,7 @@ export function openCard(card, seq, startV) {
     $("#m-wish").onclick = () => { unToggleWish(cref()); const y = sc.scrollTop; draw(); $("#cp-scroll").scrollTop = y; };
     const dxb = $("#m-dex"); if (dxb) dxb.onclick = () => goDex(c.dx[0]);
     const fv = $("#m-fav"); if (fv) fv.onclick = () => { setFav(c.id, !isFav(c.id)); changed = true; const y = sc.scrollTop; draw(); $("#cp-scroll").scrollTop = y; };
-    $("#m-price").onclick = () => openPricePage(c, nInfo, pv, () => { changed = true; });
+    $("#m-price").onclick = () => openPricePage(c, nInfo, pv, () => { changed = true; const b = $("#m-price"); if (b && priceOf(c, pv)) b.lastChild.textContent = ` Prix · ${eur(priceOf(c, pv) * condFactor(c.id))}`; });
     const showFoil = () => {
       card.querySelector(".fx")?.remove(); card.querySelector(".ftag")?.remove();
       card.querySelector(".vw-glare").insertAdjacentHTML("beforebegin", fxHTML(foilOf(c, pv)) + badgeHTML(c, pv));
