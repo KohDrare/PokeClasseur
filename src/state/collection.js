@@ -29,13 +29,16 @@ export const qtyOf = (id, v) => S.COL.cards[id]?.v?.[v] || 0;
 export const ownedAny = id => { const v = S.COL.cards[id]?.v; return !!v && Object.values(v).some(n => n > 0); };
 export function setQty(card, variant, n) {
   n = Math.max(0, Math.min(99, n));
-  const e = S.COL.cards[card.id] || { s: card.setId, v: {} };
+  const e = S.COL.cards[card.id] || { s: card.setId, v: {}, t: Date.now() };
   e.s = card.setId;
   if (card.ok) e.d = card.dx || [];
   if (n) e.v[variant] = n; else delete e.v[variant];
   if (Object.keys(e.v).length) S.COL.cards[card.id] = e; else delete S.COL.cards[card.id];
   saveCol();
 }
+/* favourite cards, for "Par favoris" in the collection */
+export const isFav = id => !!S.COL.cards[id]?.f;
+export function setFav(id, on) { const e = S.COL.cards[id]; if (!e) return; if (on) e.f = 1; else delete e.f; saveCol(); }
 export function ownedBySet() {
   const m = {};
   for (const e of Object.values(S.COL.cards)) {

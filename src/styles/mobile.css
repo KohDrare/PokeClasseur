@@ -219,3 +219,15 @@ html.m .cp-close{position:absolute;z-index:3;left:50%;bottom:calc(18px + env(saf
 html.m .cp-close svg{width:26px;height:26px}
 html.m .cpage .cp-card.in-r{animation:mswr .2s ease}
 html.m .cpage .cp-card.in-l{animation:mswl .2s ease}
+html.m .cp-ico.fav{color:var(--gold)}
+html.m .colband{padding-block:14px 16px}
+html.m .valcard,html.m .colpeek{padding:16px;border-radius:20px}
+html.m .vc-chart{height:96px;margin:4px -16px 0}
+html.m .vc-delta{font-size:12.5px}
+html.m .coltools{flex-wrap:nowrap}
+html.m .coltools .search{order:0;flex:1 1 auto}
+html.m #col-sort{flex:none;width:auto}
+html.m #col-sort span{display:none}
+html.m .sortsheet{padding:24px 16px calc(100px + env(safe-area-inset-bottom,0px))}
+html.m .sortclose{bottom:calc(18px + env(safe-area-inset-bottom,0px))}
+html.m .sortopt{font-size:16.5px}

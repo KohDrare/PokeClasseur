@@ -181,3 +181,56 @@
 .vw-hint{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);text-align:center;color:rgba(255,255,255,.7);font-size:14px;pointer-events:none}
 .viewer:has(.zoomed) .vw-hint{display:none}
 .modal .big .holo{cursor:zoom-in}
+
+/* collection: value card with its curve + preview of the best cards */
+.colband{padding-block:24px 26px}
+.colhero{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:16px;margin-top:14px}
+@media (max-width:900px){.colhero{grid-template-columns:1fr}}
+.valcard,.colpeek{background:var(--surface);border-radius:22px;box-shadow:var(--shadow);padding:18px 20px;min-width:0;position:relative;overflow:hidden}
+.vc-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.vc-lbl{color:var(--muted);font-weight:700;font-size:15px}
+.vc-dex{display:inline-flex;align-items:center;gap:6px;margin-top:6px;color:var(--muted);text-decoration:none;font-weight:600;font-size:14px}
+.vc-dex svg{width:18px;height:18px}
+.vc-delta{display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right;font-size:13.5px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
+.vc-delta .up{color:var(--ok)}
+.vc-delta .dn{color:var(--red)}
+.vc-val{font-size:clamp(36px,6vw,48px);font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums;margin:10px 0 2px;line-height:1.05}
+.vc-chart{position:relative;height:120px;margin:6px -20px 0}
+.vc-chart svg{width:100%;height:100%;display:block;color:var(--navy)}
+.vc-chart svg.up{color:var(--ok)}
+.vc-chart svg.dn{color:var(--red)}
+.vc-chart .ln{fill:none;stroke:currentColor;stroke-width:2.5;vector-effect:non-scaling-stroke;stroke-linejoin:round;stroke-linecap:round}
+.vc-chart .ln.flat{stroke:var(--line);stroke-dasharray:6 6}
+.vc-empty{position:absolute;left:20px;right:20px;top:18px;margin:0;color:var(--muted);font-size:13px;line-height:1.45}
+.vc-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
+.vc-range button{padding:7px 12px;font-size:13px}
+.cp-hd2{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.cp-hd2 h2{margin:0;font-size:20px}
+.cp-hd2 .linkbtn{font-size:14.5px;color:var(--fg)}
+.peekgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.peek{position:relative;border:0;padding:0;background:none;aspect-ratio:63/88;border-radius:4.5%/3.3%;overflow:hidden;box-shadow:0 6px 16px rgba(0,0,0,.25);cursor:pointer}
+.peek img{width:100%;height:100%;object-fit:cover;display:block}
+.peek .pchip{position:absolute;left:50%;bottom:7%;transform:translateX(-50%);z-index:2;background:rgba(12,14,26,.82);color:#fff;font-weight:800;font-size:13px;padding:4px 10px;border-radius:999px;white-space:nowrap;font-variant-numeric:tabular-nums;backdrop-filter:blur(4px)}
+.peekstats{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);color:var(--muted);font-weight:600;font-size:14px}
+.peekstats b{color:var(--fg);font-variant-numeric:tabular-nums}
+.peekstats a{color:inherit;text-decoration:none}
+.coltools .search{flex:1 1 260px}
+#col-sort .sdir{display:inline-grid;margin-left:2px;vertical-align:-3px}
+.sdir svg{width:16px;height:16px}
+.sdir.down svg{transform:rotate(180deg)}
+.favtag{position:absolute;left:6px;top:6px;z-index:2;width:22px;height:22px;border-radius:50%;background:rgba(12,14,26,.75);color:var(--gold);display:grid;place-items:center;font-size:13px}
+#colall{scroll-margin-top:70px}
+
+/* sort sheet (like TCG Pocket): options right-aligned with their icon, the chosen one highlighted */
+.sortsheet{display:block;max-width:460px;padding:22px 22px 96px}
+.sortsheet h2{text-align:center;margin:0 0 14px;font-size:24px}
+.sortlist{display:flex;flex-direction:column;gap:4px}
+.sortopt{position:relative;display:flex;align-items:center;justify-content:flex-end;gap:14px;border:0;background:none;padding:13px 54px 13px 18px;border-radius:999px;font-weight:600;font-size:17px;text-align:right;color:var(--fg);cursor:pointer}
+.sortopt>svg{width:26px;height:26px;flex:none}
+.sortopt:hover{background:var(--surface-2)}
+.sortopt.on{background:var(--navy);color:var(--navy-ink)}
+.sortopt .sdir{position:absolute;right:14px;top:50%;transform:translateY(-50%)}
+.sortopt .sdir svg{width:22px;height:22px}
+.sortsheet .note{text-align:center;margin:12px 0 0}
+.sortclose{position:absolute;left:50%;bottom:18px;width:60px;height:60px;margin-left:-30px;border-radius:50%;border:0;background:var(--surface-2);color:var(--fg);display:grid;place-items:center;box-shadow:var(--shadow)}
+.sortclose svg{width:24px;height:24px}

@@ -47,6 +47,8 @@ export function mergeCols(a, b) {
       const cur = (out.cards[id] ||= { s: e.s, v: {} });
       cur.s = e.s || cur.s;
       if (e.d?.length) cur.d = e.d;
+      if (e.f) cur.f = 1;                                   // favourite (kept on this device)
+      if (e.t) cur.t = Math.min(cur.t || e.t, e.t);         // first added
       for (const [v, q] of Object.entries(e.v || {})) cur.v[v] = Math.max(cur.v[v] || 0, q);
     }
     for (const [sid, list] of Object.entries(src.products || {})) {

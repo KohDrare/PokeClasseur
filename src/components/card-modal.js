@@ -8,7 +8,7 @@ import { attachTilt } from "../features/tilt.js";
 import { renderCollection } from "../pages/collection.js";
 import { renderSetStats } from "../pages/set-stats.js";
 import { drawCards, refreshCounts } from "../pages/set.js";
-import { ownedAny, qtyOf, setQty } from "../state/collection.js";
+import { isFav, ownedAny, qtyOf, setFav, setQty } from "../state/collection.js";
 import { S } from "../state/shared.js";
 import { unToggleWish } from "../union/feed.js";
 import { unListingForm } from "../union/market.js";
@@ -19,12 +19,13 @@ export function openCard(card, seq, startV) {
   const root = $("#modal-root");
   let idx = seq.findIndex(c => c.id === card.id);
   let pv = startV || null; /* version shown on the big card */
-  const info = S.CUR?.data?.info || card._info || {};
+  const baseInfo = S.CUR?.data?.info || card._info || {};
   let untilt = () => {};
   const draw = () => {
     untilt(); untilt = () => {};
     if (document.documentElement.classList.contains("m")) return drawPhone();
     const c = seq[idx];
+    const info = c._info || baseInfo;   // a list can mix extensions (collection sorted by price…)
     const r = rarity(c.r);
     if (!pv || !variantsOf(c).includes(pv)) pv = mainVariant(c);
     root.innerHTML = `<div class="modal" id="mdl"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(c.name)}">
@@ -49,7 +50,7 @@ export function openCard(card, seq, startV) {
           <button class="pill ghost" id="m-next" ${idx >= seq.length - 1 ? "disabled" : ""}>${ICON.next}</button>
           <a class="pill ghost" href="https://www.cardmarket.com/fr/Pokemon/Products/Search?searchString=${encodeURIComponent(c.name)}" target="_blank" rel="noopener">Cardmarket</a>
           <button class="pill ghost" id="m-wish">${UN.wish.some(w => w.id === c.id) ? "Dans ma liste" : "Je la cherche"}</button>
-          ${ownedAny(c.id) ? `<button class="pill ghost" id="m-sell">Vendre</button>` : ""}
+          ${ownedAny(c.id) ? `<button class="pill ghost" id="m-sell">Vendre</button><button class="pill ghost ${isFav(c.id) ? "on" : ""}" id="m-fav">${isFav(c.id) ? "★ Favorite" : "☆ Favori"}</button>` : ""}
         </div>
         <p class="note" style="margin-top:14px">Prix : tendance Cardmarket (TCGdex). Utilise ← et → pour passer d'une carte à l'autre.</p>
       </div></div></div>`;
@@ -60,6 +61,7 @@ export function openCard(card, seq, startV) {
     const sb = $("#m-sell"); if (sb) sb.onclick = () => { if (!UN.me.name) { close(); toast("Crée d'abord ton profil Union Room"); location.hash = "#/union/profile"; return; } const r = cref(); close(); unListingForm(r); };
     $("#m-prev").onclick = () => { if (idx > 0) { idx--; draw(); } };
     $("#m-next").onclick = () => { if (idx < seq.length - 1) { idx++; draw(); } };
+    const fv = $("#m-fav"); if (fv) fv.onclick = () => { setFav(c.id, !isFav(c.id)); changed = true; fv.classList.toggle("on", isFav(c.id)); fv.textContent = isFav(c.id) ? "★ Favorite" : "☆ Favori"; };
     const showFoil = () => {
       const h2 = $("#holo"); h2.querySelector(".fx")?.remove(); h2.querySelector(".ftag")?.remove();
       h2.querySelector(".glare").insertAdjacentHTML("beforebegin", fxHTML(foilOf(c, pv)) + badgeHTML(c, pv));
@@ -92,7 +94,7 @@ export function openCard(card, seq, startV) {
     const c = seq[idx];
     const r = rarity(c.r);
     if (!pv || !variantsOf(c).includes(pv)) pv = mainVariant(c);
-    const nInfo = c._info || info;
+    const nInfo = c._info || baseInfo;
     const owned = Object.values(S.COL.cards[c.id]?.v || {}).reduce((a, b) => a + b, 0);
     const wished = UN.wish.some(w => w.id === c.id);
     const pool = (S.CUR?.data?.cards?.some(x => x.id === c.id) ? S.CUR.data.cards : seq).filter(x => !x.grp);
@@ -106,6 +108,7 @@ export function openCard(card, seq, startV) {
         <div class="cp-bar">
           <span class="cp-own ${owned ? "have" : ""}" title="Exemplaires possédés">${ICON.cards}<b>${owned}</b></span>
           <span class="cp-pos">${idx + 1} / ${seq.length}</span>
+          ${owned ? `<button class="cp-ico ${isFav(c.id) ? "on fav" : ""}" id="m-fav" aria-pressed="${isFav(c.id)}" aria-label="Favori"><svg viewBox="0 0 24 24" fill="${isFav(c.id) ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg><small>Favori</small></button>` : ""}
           <button class="cp-ico ${wished ? "on" : ""}" id="m-wish" aria-pressed="${wished}" aria-label="Je la cherche"><svg viewBox="0 0 24 24" fill="${wished ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg><small>${wished ? "Recherchée" : "Je la cherche"}</small></button>
         </div>
         <div class="cp-stage" id="cp-stage"><div class="cp-card" id="cp-card">${imgTag(c, "high")}${fxHTML(foilOf(c, pv))}${badgeHTML(c, pv)}<span class="vw-glare"></span></div></div>
@@ -164,6 +167,7 @@ export function openCard(card, seq, startV) {
     $("#m-next").onclick = () => { if (idx < seq.length - 1) { idx++; draw(); } };
     const cref = () => ({ id: c.id, name: c.name, img: c.img, set: nInfo.name || "", n: c.n, r: c.r, p: priceOf(c, pv) || c.p || 0, dx: c.dx || [] });
     $("#m-wish").onclick = () => { unToggleWish(cref()); const y = sc.scrollTop; draw(); $("#cp-scroll").scrollTop = y; };
+    const fv = $("#m-fav"); if (fv) fv.onclick = () => { setFav(c.id, !isFav(c.id)); changed = true; const y = sc.scrollTop; draw(); $("#cp-scroll").scrollTop = y; };
     const sb = $("#m-sell"); if (sb) sb.onclick = () => { if (!UN.me.name) { close(); toast("Crée d'abord ton profil Union Room"); location.hash = "#/union/profile"; return; } const r2 = cref(); close(); unListingForm(r2); };
     const showFoil = () => {
       card.querySelector(".fx")?.remove(); card.querySelector(".ftag")?.remove();
