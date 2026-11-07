@@ -12,7 +12,7 @@ import { isFav, ownedAny, qtyOf, setFav, setQty } from "../state/collection.js";
 import { S } from "../state/shared.js";
 import { unToggleWish } from "../union/feed.js";
 import { regionOf, sprite } from "../pages/pokedex.js";
-import { unListingForm } from "../union/market.js";
+import { openPricePage } from "../features/pricepage.js";
 import { UN } from "../union/store.js";
 
 /* ================= CARD MODAL ================= */
@@ -50,10 +50,10 @@ export function openCard(card, seq, startV) {
         <div class="navrow">
           <button class="pill ghost" id="m-prev" ${idx === 0 ? "disabled" : ""}>${ICON.prev}</button>
           <button class="pill ghost" id="m-next" ${idx >= seq.length - 1 ? "disabled" : ""}>${ICON.next}</button>
-          <a class="pill ghost" href="https://www.cardmarket.com/fr/Pokemon/Products/Search?searchString=${encodeURIComponent(c.name)}" target="_blank" rel="noopener">Cardmarket</a>
+          <button class="pill ghost" id="m-price"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M17.5 6.5A7 7 0 1 0 17.5 17.5"/><path d="M4 10.5h9M4 13.5h9"/></svg> Prix</button>
           ${c.dx?.length ? `<button class="pill ghost" id="m-dex">Pokédex</button>` : ""}
           <button class="pill ghost" id="m-wish">${UN.wish.some(w => w.id === c.id) ? "Dans ma liste" : "Je la cherche"}</button>
-          ${ownedAny(c.id) ? `<button class="pill ghost" id="m-sell">Vendre</button><button class="pill ghost ${isFav(c.id) ? "on" : ""}" id="m-fav">${isFav(c.id) ? "★ Favorite" : "☆ Favori"}</button>` : ""}
+          ${ownedAny(c.id) ? `<button class="pill ghost ${isFav(c.id) ? "on" : ""}" id="m-fav">${isFav(c.id) ? "★ Favorite" : "☆ Favori"}</button>` : ""}
         </div>
         <p class="note" style="margin-top:14px">Prix : tendance Cardmarket (TCGdex). Utilise ← et → pour passer d'une carte à l'autre.</p>
       </div></div></div>`;
@@ -61,7 +61,7 @@ export function openCard(card, seq, startV) {
     $("#mdl").onclick = e => { if (e.target.id === "mdl") close(); };
     const cref = () => ({ id: c.id, name: c.name, img: c.img, set: info.name || "", n: c.n, r: c.r, p: priceOf(c, pv) || c.p || 0, dx: c.dx || [] });
     $("#m-wish").onclick = () => { unToggleWish(cref()); $("#m-wish").textContent = UN.wish.some(w => w.id === c.id) ? "Dans ma liste" : "Je la cherche"; };
-    const sb = $("#m-sell"); if (sb) sb.onclick = () => { if (!UN.me.name) { close(); toast("Crée d'abord ton profil Union Room"); location.hash = "#/union/profile"; return; } const r = cref(); close(); unListingForm(r); };
+    $("#m-price").onclick = () => openPricePage(c, info, pv);
     $("#m-prev").onclick = () => { if (idx > 0) { idx--; draw(); } };
     $("#m-next").onclick = () => { if (idx < seq.length - 1) { idx++; draw(); } };
     const dxb = $("#m-dex"); if (dxb) dxb.onclick = () => goDex(c.dx[0]);
@@ -119,10 +119,7 @@ export function openCard(card, seq, startV) {
       </div>
       <div class="cp-scroll" id="cp-scroll"><div class="cp-sheet" id="cp-sheet">
         <div class="cp-head">
-          <div class="cp-acts">
-            <a class="pill ghost" href="https://www.cardmarket.com/fr/Pokemon/Products/Search?searchString=${encodeURIComponent(c.name)}" target="_blank" rel="noopener">Cardmarket</a>
-            ${owned ? `<button class="pill ghost" id="m-sell">Vendre</button>` : ""}
-          </div>
+          <div class="cp-acts"><button class="pill cp-price" id="m-price"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M17.5 6.5A7 7 0 1 0 17.5 17.5"/><path d="M4 10.5h9M4 13.5h9"/></svg> Prix${priceOf(c, pv) ? ` · ${eur(priceOf(c, pv))}` : ""}</button></div>
         </div>
         <h2 class="cp-name">${esc(c.name)}</h2>
         <div class="cp-rar">${c.ok ? symHTML(c.r) : ""}<span>${esc(rarLabel)}</span></div>
@@ -174,7 +171,7 @@ export function openCard(card, seq, startV) {
     $("#m-wish").onclick = () => { unToggleWish(cref()); const y = sc.scrollTop; draw(); $("#cp-scroll").scrollTop = y; };
     const dxb = $("#m-dex"); if (dxb) dxb.onclick = () => goDex(c.dx[0]);
     const fv = $("#m-fav"); if (fv) fv.onclick = () => { setFav(c.id, !isFav(c.id)); changed = true; const y = sc.scrollTop; draw(); $("#cp-scroll").scrollTop = y; };
-    const sb = $("#m-sell"); if (sb) sb.onclick = () => { if (!UN.me.name) { close(); toast("Crée d'abord ton profil Union Room"); location.hash = "#/union/profile"; return; } const r2 = cref(); close(); unListingForm(r2); };
+    $("#m-price").onclick = () => openPricePage(c, nInfo, pv);
     const showFoil = () => {
       card.querySelector(".fx")?.remove(); card.querySelector(".ftag")?.remove();
       card.querySelector(".vw-glare").insertAdjacentHTML("beforebegin", fxHTML(foilOf(c, pv)) + badgeHTML(c, pv));

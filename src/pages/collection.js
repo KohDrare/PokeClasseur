@@ -123,10 +123,7 @@ function drawHero(items) {
       </div>
       <div class="vc-val">${eur(value).replace("–", "0 €")}</div>
       <div class="vc-chart" id="vc-chart"></div>
-      <div class="vc-foot">
-        <div class="seg vc-range" id="vc-range">${[["7", "7 j"], ["30", "1 mois"], ["365", "1 an"], ["all", "Tout"]].map(([k, l]) => `<button data-r="${k}" class="${pref.range === k ? "on" : ""}">${l}</button>`).join("")}</div>
-        <span class="note">Prix tendance Cardmarket</span>
-      </div>
+      <div class="vc-foot"><span class="note">Valeur de tes cartes au prix Cardmarket</span></div>
     </div>
     <div class="colpeek">
       <div class="cp-hd2"><h2>Aperçu de mes cartes</h2><button class="linkbtn" id="peek-all">Voir tout</button></div>
@@ -139,7 +136,6 @@ function drawHero(items) {
       </div>
     </div>`;
   drawChart(h.days, value);
-  $("#vc-range").onclick = e => { const b = e.target.closest("button"); if (!b) return; pref.range = b.dataset.r; LS.set("pc-colsort", pref); [...e.currentTarget.children].forEach(x => x.classList.toggle("on", x === b)); drawChart(h.days, value); };
   $("#peek-all").onclick = () => $("#colall").scrollIntoView({ behavior: "smooth", block: "start" });
   $("#colhero .peekgrid").onclick = e => { const b = e.target.closest("[data-peek]"); if (!b) return; const seq = top.map(x => x.c); openCardIn(seq[+b.dataset.peek], seq); };
 }
@@ -147,10 +143,9 @@ function drawHero(items) {
 /* the curve: daily values, filled area, green going up / red going down */
 function drawChart(days, now) {
   const el = $("#vc-chart"); if (!el) return;
-  const cut = pref.range === "all" ? "" : new Date(Date.now() - (+pref.range) * 864e5).toLocaleDateString("sv-SE");
-  const pts = days.filter(p => p.d >= cut).map(p => ({ t: Date.parse(p.d), v: p.v }));
+  const pts = days.map(p => ({ t: Date.parse(p.d), v: p.v }));   // the whole history
   if (!pts.length || pts[pts.length - 1].v !== now) pts.push({ t: Date.now(), v: now });
-  const W = 600, H = 150, P = 6;
+  const W = 600, H = 100, P = 6;
   if (pts.length < 2) {
     el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="M0 ${H * 0.62}H${W}" class="ln flat"/></svg><p class="vc-empty">La courbe se remplit jour après jour : chaque jour où tu ouvres ta collection, sa valeur est notée.</p>`;
     return;
