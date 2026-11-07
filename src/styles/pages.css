@@ -342,9 +342,21 @@
 .pp-ticks{display:flex;justify-content:space-between;font:600 11px var(--mono);color:var(--muted);margin-top:2px}
 .pp-h{font-size:12px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:18px 0 8px}
 .pp-conds{display:flex;flex-direction:column;gap:6px}
-.pp-cond{display:flex;align-items:center;gap:12px;padding:9px 14px;border-radius:14px;background:var(--surface-2)}
-.pp-cond:first-child{background:var(--navy-soft)}
-.pp-k{flex:none;width:36px;height:28px;border-radius:8px;background:var(--surface);display:grid;place-items:center;font:700 12.5px var(--mono)}
+.pp-cond{position:relative;display:flex;align-items:center;gap:12px;width:100%;padding:9px 14px;border-radius:14px;border:2px solid transparent;background:color-mix(in srgb,var(--cc) 12%,var(--surface-2));color:var(--fg);text-align:left;font:inherit;cursor:pointer}
+.pp-cond:disabled{cursor:default}
+.pp-cond.on{border-color:var(--cc);background:color-mix(in srgb,var(--cc) 24%,var(--surface-2))}
+.pp-k{flex:none;width:38px;height:28px;border-radius:8px;background:var(--cc);color:#fff;display:grid;place-items:center;font:700 12.5px var(--mono)}
+.pp-cond b{color:var(--cc);filter:brightness(1.15)}
+.pp-mine{position:absolute;top:-9px;right:12px;font-style:normal;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;background:var(--cc);color:#fff;padding:2px 8px;border-radius:999px}
+.pp-h small{text-transform:none;letter-spacing:0;font-weight:600;margin-left:6px}
+.pp-condnote{margin:8px 2px 0}
+.pp-bars{display:flex;align-items:flex-end;gap:10px;height:150px;padding:8px 4px 0;color:var(--ok)}
+.pp-bars.dn{color:var(--red)}
+.pp-bar{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:5px;min-width:0}
+.pp-bar i{display:block;width:100%;max-width:64px;border-radius:8px 8px 3px 3px;background:linear-gradient(180deg,currentColor,color-mix(in srgb,currentColor 35%,transparent))}
+.pp-bar:last-child i{outline:2px solid currentColor;outline-offset:2px}
+.pp-bar b{font-size:13px;color:var(--fg);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pp-bar span{font-size:11.5px;color:var(--muted);font-weight:700;text-align:center;line-height:1.2}
 .pp-cl{flex:1;display:flex;flex-direction:column;font-weight:700;font-size:14.5px}
 .pp-cl small{color:var(--muted);font-weight:600;font-size:12px}
 .pp-cond b{font-size:16px;font-variant-numeric:tabular-nums}

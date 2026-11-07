@@ -5,15 +5,17 @@ import { getJSON } from "../data/tcgdex.js";
 import { $, API, ICON, esc } from "../lib/core.js";
 import { imgTag, numLabel } from "../lib/ui.js";
 import { VARIANT_LABEL, eur, variantsOf } from "./variants.js";
+import { PRICE_DATE } from "../data/price-hints.js";
+import { condOf, ownedAny, setCond } from "../state/collection.js";
 
 /* how much a card is worth by condition, as a share of a near-mint copy (usual Cardmarket ratios) */
 export const CONDITIONS = [
-  { k: "NM", l: "Near Mint", fr: "Comme neuve", f: 1 },
-  { k: "EX", l: "Excellent", fr: "Très bon état", f: 0.85 },
-  { k: "GD", l: "Good", fr: "Bon état", f: 0.7 },
-  { k: "LP", l: "Light Played", fr: "Légèrement jouée", f: 0.55 },
-  { k: "PL", l: "Played", fr: "Jouée", f: 0.4 },
-  { k: "PO", l: "Poor", fr: "Abîmée", f: 0.25 }
+  { k: "NM", l: "Near Mint", fr: "Comme neuve", f: 1, col: "#1f9d63" },
+  { k: "EX", l: "Excellent", fr: "Très bon état", f: 0.85, col: "#5fae2f" },
+  { k: "GD", l: "Good", fr: "Bon état", f: 0.7, col: "#c9a21b" },
+  { k: "LP", l: "Light Played", fr: "Légèrement jouée", f: 0.55, col: "#e8862a" },
+  { k: "PL", l: "Played", fr: "Jouée", f: 0.4, col: "#e05a33" },
+  { k: "PO", l: "Poor", fr: "Abîmée", f: 0.25, col: "#c62f3c" }
 ];
 const median = a => { const v = a.filter(x => x > 0).sort((x, y) => x - y); if (!v.length) return 0; const m = v.length >> 1; return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2; };
 
@@ -30,7 +32,7 @@ function figures(cm, v) {
   return f;
 }
 
-export async function openPricePage(c, info, startV) {
+export async function openPricePage(c, info, startV, onChange) {
   document.getElementById("pricepage")?.remove();
   const el = document.createElement("div");
   el.id = "pricepage"; el.className = "pricepage";
@@ -51,8 +53,11 @@ export async function openPricePage(c, info, startV) {
   const qShort = encodeURIComponent(`${c.name} ${c.n || ""}`.trim());
   const tpv = tp ? Object.entries(tp).find(([k, x]) => x && typeof x === "object" && (v === "reverse" ? /reverse/i.test(k) : !/reverse/i.test(k)))?.[1] : null;
 
+  const owned = ownedAny(c.id);
+  let cond = condOf(c.id);
   const draw = () => {
-    const f = figures(cm, v);
+    let f = figures(cm, v);
+    if ((!f || !f.fair) && c.p && v !== "reverse") f = { fair: c.p, hint: true };
     const fair = f?.fair || 0;
     const row = (l, x, sub = "") => x ? `<div class="pp-row"><span>${l}${sub ? `<small>${sub}</small>` : ""}</span><b>${eur(x)}</b></div>` : "";
     el.querySelector(".pp-sheet").innerHTML = `
@@ -67,15 +72,17 @@ export async function openPricePage(c, info, startV) {
           <div class="pp-lbl">Prix estimé · comme neuve</div>
           <div class="pp-val">${eur(fair)}</div>
           ${f.lo && f.hi && f.hi - f.lo > 0.01 ? `<div class="note">Fourchette récente : ${eur(f.lo)} – ${eur(f.hi)}</div>` : ""}
-          ${spark(f)}
+          ${f.hint ? `<div class="note">Prix relevé à la main le ${new Date(PRICE_DATE[c.setId] || Date.now()).toLocaleDateString("fr-BE", { day: "numeric", month: "long" })} (ventes Cardmarket) : l'extension est trop récente pour la base de prix.</div>` : ""}
         </div>
-        <div class="pp-h">Selon l'état</div>
-        <div class="pp-conds">${CONDITIONS.map(k => `<div class="pp-cond"><span class="pp-k">${k.k}</span><span class="pp-cl">${k.fr}<small>${k.l} · ${Math.round(k.f * 100)} %</small></span><b>${eur(Math.max(0.02, fair * k.f))}</b></div>`).join("")}</div>
-        <div class="pp-h">Détail Cardmarket</div>
+        <div class="pp-h">${owned ? "État de ta carte <small>touche pour le changer</small>" : "Selon l'état"}</div>
+        <div class="pp-conds">${CONDITIONS.map(k => `<button class="pp-cond ${owned && k.k === cond ? "on" : ""}" data-k="${k.k}" style="--cc:${k.col}" ${owned ? "" : "disabled"}><span class="pp-k">${k.k}</span><span class="pp-cl">${k.fr}<small>${k.l} · ${Math.round(k.f * 100)} %</small></span><b>${eur(Math.max(0.02, fair * k.f))}</b>${owned && k.k === cond ? `<i class="pp-mine">Ma carte</i>` : ""}</button>`).join("")}</div>
+        ${owned && cond !== "NM" ? `<p class="note pp-condnote">Ta collection compte cette carte à ${eur(Math.max(0.02, fair * CONDITIONS.find(k => k.k === cond).f))} (état ${cond}).</p>` : ""}
+        ${bars(f)}
+        ${f.hint ? "" : `        <div class="pp-h">Détail Cardmarket</div>
         <div class="pp-rows">
           ${row("Tendance", f.trend)}${row("Moyenne 1 jour", f.avg1)}${row("Moyenne 7 jours", f.avg7)}${row("Moyenne 30 jours", f.avg30)}${row("Plus bas en vente", f.low, "souvent un exemplaire abîmé")}
           ${tpv?.marketPrice ? `<div class="pp-row"><span>TCGplayer (USA)<small>prix du marché</small></span><b>${tpv.marketPrice.toLocaleString("fr-BE", { style: "currency", currency: "USD" })}</b></div>` : ""}
-        </div>`
+        </div>`}`
       : `<div class="pp-main"><div class="pp-lbl">Prix</div><div class="pp-val sm">Pas encore de prix</div><div class="note">Cardmarket n'a pas encore assez de ventes pour cette carte (souvent le cas d'une extension toute récente).</div></div>`}
       <div class="pp-h">Comparer</div>
       <div class="pp-links">
@@ -83,19 +90,19 @@ export async function openPricePage(c, info, startV) {
         <a class="pill ghost" target="_blank" rel="noopener" href="https://www.ebay.fr/sch/i.html?_nkw=${q}&LH_Sold=1&LH_Complete=1">eBay · vendues</a>
         <a class="pill ghost" target="_blank" rel="noopener" href="https://www.vinted.fr/catalog?search_text=${q}">Vinted</a>
       </div>
-      <p class="note pp-foot">Le prix estimé est la valeur du milieu entre la tendance Cardmarket et ses moyennes sur 7 et 30 jours : une vente isolée trop chère ou bradée ne le fausse pas. Les prix par état suivent les écarts habituels sur Cardmarket.${cm?.updated ? ` Mis à jour le ${new Date(cm.updated).toLocaleDateString("fr-BE", { day: "numeric", month: "long" })}.` : ""}</p>`;
+      <p class="note pp-foot">Le prix estimé est la valeur du milieu entre la tendance Cardmarket et ses moyennes sur 7 et 30 jours : une vente isolée trop chère ou bradée ne le fausse pas. Les prix par état suivent les écarts habituels sur Cardmarket. Pour voir les dernières ventes une par une, ouvre « eBay · vendues ».${cm?.updated ? ` Mis à jour le ${new Date(cm.updated).toLocaleDateString("fr-BE", { day: "numeric", month: "long" })}.` : ""}</p>`;
     el.querySelector(".pp-vers")?.addEventListener("click", e => { const b = e.target.closest("[data-v]"); if (b) { v = b.dataset.v; draw(); } });
+    el.querySelector(".pp-conds")?.addEventListener("click", e => { const b = e.target.closest("[data-k]"); if (!b || !owned) return; setCond(c.id, b.dataset.k); cond = b.dataset.k; onChange?.(); draw(); });
   };
   draw();
 }
 
-/* small line: 30 days → 7 days → yesterday → trend */
-function spark(f) {
-  const pts = [["30 j", f.avg30], ["7 j", f.avg7], ["1 j", f.avg1], ["Tendance", f.trend]].filter(p => p[1] > 0);
+/* average price over 30 days, 7 days, yesterday, and the trend: bars with their value (what Cardmarket publishes) */
+function bars(f) {
+  const pts = [["Moyenne 30 j", f.avg30], ["Moyenne 7 j", f.avg7], ["Hier", f.avg1], ["Tendance", f.trend]].filter(p => p[1] > 0);
   if (pts.length < 2) return "";
-  const lo = Math.min(...pts.map(p => p[1])), hi = Math.max(...pts.map(p => p[1])), W = 300, H = 60;
-  const X = i => 10 + i * (W - 20) / (pts.length - 1), Y = x => hi === lo ? H / 2 : H - 8 - (x - lo) / (hi - lo) * (H - 16);
-  const d = pts.map((p, i) => `${i ? "L" : "M"}${X(i).toFixed(1)} ${Y(p[1]).toFixed(1)}`).join("");
-  const up = pts[pts.length - 1][1] >= pts[0][1];
-  return `<div class="pp-spark ${up ? "up" : "dn"}"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${d}" class="ln"/></svg><div class="pp-ticks">${pts.map(p => `<span>${p[0]}</span>`).join("")}</div></div>`;
+  const hi = Math.max(...pts.map(p => p[1]));
+  const dir = pts[pts.length - 1][1] - pts[0][1];
+  return `<div class="pp-h">Évolution du prix <small>${Math.abs(dir) < 0.01 ? "stable" : dir > 0 ? `en hausse de ${eur(dir)} sur 30 jours` : `en baisse de ${eur(-dir)} sur 30 jours`}</small></div>
+    <div class="pp-bars ${dir >= 0 ? "up" : "dn"}">${pts.map(([l, x]) => `<div class="pp-bar"><b>${eur(x)}</b><i style="height:calc((100% - 46px) * ${Math.max(0.06, x / hi).toFixed(3)})"></i><span>${l}</span></div>`).join("")}</div>`;
 }

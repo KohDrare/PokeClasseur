@@ -6,7 +6,7 @@ import { $, API, ICON, esc } from "../lib/core.js";
 import { LS } from "../lib/storage.js";
 import { setNav } from "../lib/ui.js";
 import { dexCounts } from "./pokedex.js";
-import { ownedBySet } from "../state/collection.js";
+import { COND_F, ownedBySet } from "../state/collection.js";
 import { S } from "../state/shared.js";
 
 /* ================= HOME ================= */
@@ -66,7 +66,7 @@ export async function collectionValue() {
   for (const [sid, arr] of Object.entries(bySet)) {
     const s = await peekSet(sid); if (!s) continue;
     const m = new Map(s.cards.map(c => [c.id, c]));
-    for (const [id, e] of arr) { const c = m.get(id); if (!c) continue; for (const [v, n] of Object.entries(e.v)) total += priceOf(c, v) * n; }
+    for (const [id, e] of arr) { const c = m.get(id); if (!c) continue; const k = COND_F[e.c] || 1; for (const [v, n] of Object.entries(e.v)) total += priceOf(c, v) * n * k; }
   }
   return total;
 }

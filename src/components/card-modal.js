@@ -61,7 +61,7 @@ export function openCard(card, seq, startV) {
     $("#mdl").onclick = e => { if (e.target.id === "mdl") close(); };
     const cref = () => ({ id: c.id, name: c.name, img: c.img, set: info.name || "", n: c.n, r: c.r, p: priceOf(c, pv) || c.p || 0, dx: c.dx || [] });
     $("#m-wish").onclick = () => { unToggleWish(cref()); $("#m-wish").textContent = UN.wish.some(w => w.id === c.id) ? "Dans ma liste" : "Je la cherche"; };
-    $("#m-price").onclick = () => openPricePage(c, info, pv);
+    $("#m-price").onclick = () => openPricePage(c, info, pv, () => { changed = true; });
     $("#m-prev").onclick = () => { if (idx > 0) { idx--; draw(); } };
     $("#m-next").onclick = () => { if (idx < seq.length - 1) { idx++; draw(); } };
     const dxb = $("#m-dex"); if (dxb) dxb.onclick = () => goDex(c.dx[0]);
@@ -171,7 +171,7 @@ export function openCard(card, seq, startV) {
     $("#m-wish").onclick = () => { unToggleWish(cref()); const y = sc.scrollTop; draw(); $("#cp-scroll").scrollTop = y; };
     const dxb = $("#m-dex"); if (dxb) dxb.onclick = () => goDex(c.dx[0]);
     const fv = $("#m-fav"); if (fv) fv.onclick = () => { setFav(c.id, !isFav(c.id)); changed = true; const y = sc.scrollTop; draw(); $("#cp-scroll").scrollTop = y; };
-    $("#m-price").onclick = () => openPricePage(c, nInfo, pv);
+    $("#m-price").onclick = () => openPricePage(c, nInfo, pv, () => { changed = true; });
     const showFoil = () => {
       card.querySelector(".fx")?.remove(); card.querySelector(".ftag")?.remove();
       card.querySelector(".vw-glare").insertAdjacentHTML("beforebegin", fxHTML(foilOf(c, pv)) + badgeHTML(c, pv));

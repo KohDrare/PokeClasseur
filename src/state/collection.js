@@ -36,6 +36,11 @@ export function setQty(card, variant, n) {
   if (Object.keys(e.v).length) S.COL.cards[card.id] = e; else delete S.COL.cards[card.id];
   saveCol();
 }
+/* condition of your copy (set on the price page): its value is the near-mint price × this share */
+export const COND_F = { NM: 1, EX: 0.85, GD: 0.7, LP: 0.55, PL: 0.4, PO: 0.25 };
+export const condOf = id => S.COL.cards[id]?.c || "NM";
+export const condFactor = id => COND_F[condOf(id)] || 1;
+export function setCond(id, k) { const e = S.COL.cards[id]; if (!e) return; if (k === "NM") delete e.c; else e.c = k; saveCol(); }
 /* favourite cards, for "Par favoris" in the collection */
 export const isFav = id => !!S.COL.cards[id]?.f;
 export function setFav(id, on) { const e = S.COL.cards[id]; if (!e) return; if (on) e.f = 1; else delete e.f; saveCol(); }

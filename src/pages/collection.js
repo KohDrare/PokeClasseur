@@ -6,7 +6,7 @@ import { $, ICON, esc } from "../lib/core.js";
 import { LS } from "../lib/storage.js";
 import { imgTag, numLabel, setNav } from "../lib/ui.js";
 import { dexCounts } from "./pokedex.js";
-import { isFav, ownedAny, ownedBySet } from "../state/collection.js";
+import { condFactor, isFav, ownedAny, ownedBySet } from "../state/collection.js";
 import { SORTS, sortItems } from "../features/colsort.js";
 import { S } from "../state/shared.js";
 import { UN } from "../union/store.js";
@@ -77,8 +77,8 @@ export async function renderCollection() {
     items.push({
       c: Object.assign(c, { _info: s.info }), info: s.info,
       q: vs.reduce((a, [, n]) => a + n, 0),
-      val: vs.reduce((a, [v, n]) => a + priceOf(c, v) * n, 0),
-      unit: Math.max(0, ...vs.map(([v]) => priceOf(c, v))),
+      val: vs.reduce((a, [v, n]) => a + priceOf(c, v) * n, 0) * condFactor(c.id),   // your copy, in its condition
+      unit: Math.max(0, ...vs.map(([v]) => priceOf(c, v))) * condFactor(c.id),
       no: parseInt((c.src || c.n || "").replace(/\D+/g, "")) || 0,
       date: s.info.date || ""
     });
@@ -103,7 +103,7 @@ function drawHero(items) {
   // change since the reference day: new / removed cards at today's prices, the rest is the market
   let dCol = null, dMkt = null;
   if (h.ref) {
-    const price = new Map(items.flatMap(x => Object.keys(S.COL.cards[x.c.id].v).map(v => [x.c.id + "|" + v, priceOf(x.c, v)])));
+    const price = new Map(items.flatMap(x => Object.keys(S.COL.cards[x.c.id].v).map(v => [x.c.id + "|" + v, priceOf(x.c, v) * condFactor(x.c.id)])));
     dCol = 0;
     const keys = new Set([...Object.keys(q), ...Object.keys(h.ref.q || {})]);
     for (const k of keys) dCol += ((q[k] || 0) - (h.ref.q?.[k] || 0)) * (price.get(k) || 0);

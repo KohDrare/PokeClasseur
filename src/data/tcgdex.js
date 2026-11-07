@@ -1,4 +1,5 @@
 import { PCX } from "./pokecardex-map.js";
+import { priceHint } from "./price-hints.js";
 import { CARD_FIX, EXTRA, HIDDEN_SETS, LINKED, MERGED, PATCH_V, UPCOMING, dexFromName, extraCount, isScan, scanBase, upcomingVariants } from "./set-patches.js";
 import { VARIANT_ORDER } from "../features/variants.js";
 import { API, esc } from "../lib/core.js";
@@ -97,7 +98,7 @@ export function compact(d, setId) {
 }
 const PATCHED = id => MERGED[id] || EXTRA[id] || LINKED[id] || UPCOMING[id];
 // cards with a known Pokécardex scan always use it (TCGdex may list a picture that does not exist yet)
-const fixCard = c => { const f = CARD_FIX[c.id]; return f ? { ...c, n: f.n, src: f.src, img: f.scan ? scanBase(c.setId, f.src, f.scan) : c.img } : c; };
+const fixCard = c => { if (!c.p && priceHint(c.setId, c.n)) c = { ...c, p: priceHint(c.setId, c.n), hint: 1 }; const f = CARD_FIX[c.id]; return f ? { ...c, n: f.n, src: f.src, img: f.scan ? scanBase(c.setId, f.src, f.scan) : c.img } : c; };
 export const setKey = setId => "set2:" + setId + (PATCHED(setId) ? ":p" + PATCH_V : "");
 const withScan = c => { c = fixCard(c); return c.img || !c.n ? c : { ...c, img: scanBase(c.scanSet || c.setId, c.src || c.n, c.extra?.scan || c.scan) }; };
 export async function loadSet(setId, onProgress) {
@@ -166,7 +167,7 @@ export async function loadSet(setId, onProgress) {
 /* an announced set built from the cards revealed so far (checked again online every day) */
 async function upcomingSet(setId, key) {
   const u = UPCOMING[setId];
-  const cards = u.cards.map(c => withScan({ id: `${setId}-${c.n}`, setId, n: c.n, name: c.name, img: "", r: c.r, cat: c.cat, v: upcomingVariants(c), p: 0, ph: 0,
+  const cards = u.cards.map(c => withScan({ hint: 1, id: `${setId}-${c.n}`, setId, n: c.n, name: c.name, img: "", r: c.r, cat: c.cat, v: upcomingVariants(c), p: priceHint(setId, c.n), ph: 0,
     dx: c.cat === "Pokémon" ? dexFromName(c.name) : [], ok: 1 }));
   const info = { ...u.info, logo: localLogo(u.info.logo), symbol: "", upcoming: cards.length };
   const promo = LINKED[setId] ? await loadSet("mep").catch(() => null) : null;
