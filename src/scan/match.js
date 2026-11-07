@@ -52,7 +52,8 @@ export function guessCards(parsed, sets) {
     for (const s of sets) {
       const c = bestCode(s);
       if (c < 2 || (s.code || "").length < 3) continue;   // 2-letter codes are too easy to "see" in random text
-      for (const num of parsed.bare) if (num <= (s.total || 999)) out.push({ setId: s.id, num, score: 5 + c, why: "code" });
+      // a lone "103" next to "DLR" is usually the end of "084/103" with the start missed: never the set's count
+      for (const num of parsed.bare) if (num <= (s.total || 999) && num !== s.official) out.push({ setId: s.id, num, score: 5 + c, why: "code" });
     }
   }
   const uniq = new Map();

@@ -2,17 +2,22 @@
    Tesseract runs in the browser (files copied to public/ocr by scripts/copy-ocr.mjs). */
 
 const BASE = import.meta.env.BASE_URL + "ocr/";
-let workerP = null;
+let readersP = null;
 
-export function getReader() {
-  workerP ||= (async () => {
+/* two readers working side by side (one per clean-up of the image): a frame is read in the time of one */
+export function getReaders() {
+  readersP ||= (async () => {
     const { createWorker, PSM } = await import("tesseract.js");
-    const w = await createWorker("eng", 1, { workerPath: BASE + "worker.min.js", corePath: BASE, langPath: BASE.replace(/\/$/, ""), workerBlobURL: false });
-    await w.setParameters({ tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/ ", tessedit_pageseg_mode: PSM.SPARSE_TEXT });
-    return w;
-  })().catch(e => { workerP = null; throw e; });
-  return workerP;
+    const make = async () => {
+      const w = await createWorker("eng", 1, { workerPath: BASE + "worker.min.js", corePath: BASE, langPath: BASE.replace(/\/$/, ""), workerBlobURL: false });
+      await w.setParameters({ tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/ ", tessedit_pageseg_mode: PSM.SPARSE_TEXT });
+      return w;
+    };
+    return Promise.all([make(), make()]);
+  })().catch(e => { readersP = null; throw e; });
+  return readersP;
 }
+export const getReader = () => getReaders().then(r => r[0]);
 
 /* where the card sits in the camera image: the on-screen frame, mapped from the displayed video to its real pixels */
 export function frameInVideo(video, frameEl) {
@@ -25,8 +30,8 @@ export function frameInVideo(video, frameEl) {
 
 /* bottom strip of the card, full width: recent cards print code and number on the left,
    older ones (« 98/99 ») on the right; a bit taller than needed to forgive the framing */
-export function stripCanvas(src, r, width = 1500) {
-  const sx = r.x, sy = r.y + r.h * 0.86, sw = r.w, sh = r.h * 0.135;
+export function stripCanvas(src, r, width = 1100) {
+  const sx = r.x, sy = r.y + r.h * 0.85, sw = r.w, sh = r.h * 0.18;   // a little past the frame: forgives a card held a bit low
   const c = document.createElement("canvas");
   c.width = width; c.height = Math.round(width * sh / sw);
   const g = c.getContext("2d", { willReadFrequently: true });
@@ -74,10 +79,9 @@ export function variants(strip) {
   return [toCanvas(stretch(a), w, h), toCanvas(stretch(b), w, h)];
 }
 
-/* reads one camera frame; returns the text of both clean-ups, joined */
+/* reads one camera frame: both clean-ups at the same time, one text each */
 export async function readFrame(src, rect) {
-  const w = await getReader();
-  const texts = [];
-  for (const c of variants(stripCanvas(src, rect))) texts.push((await w.recognize(c)).data.text);
-  return texts.join("\n");
+  const rs = await getReaders();
+  const vs = variants(stripCanvas(src, rect));
+  return Promise.all(vs.map((c, i) => rs[i % rs.length].recognize(c).then(r => r.data.text)));
 }

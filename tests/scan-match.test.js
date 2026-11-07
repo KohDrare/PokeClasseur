@@ -54,3 +54,9 @@ describe("scanner matching", () => {
     expect(sameNumber("085", 84)).toBe(false);
   });
 });
+
+it("a lone set count next to the code is not taken for a card number", () => {
+  const sets = [{ id: "me06", code: "DLR", official: 103, total: 141, date: "2026-11-06" }];
+  expect(guessCards(parseScan("DLR FY 103\n7103"), sets)).toEqual([]);
+  expect(guessCards(parseScan("DLR FR 084/103"), sets)[0]).toMatchObject({ setId: "me06", num: 84 });
+});

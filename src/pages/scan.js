@@ -2,6 +2,7 @@
 import { openViewer } from "../components/viewer.js";
 import { PCX } from "../data/pokecardex-map.js";
 import { UPCOMING, scanBase, upcomingVariants } from "../data/set-patches.js";
+import { priceHint } from "../data/price-hints.js";
 import { compact, getJSON, img, loadSeries, peekSet } from "../data/tcgdex.js";
 import { VARIANT_LABEL, eur, priceOf } from "../features/variants.js";
 import { $, API, esc } from "../lib/core.js";
@@ -31,7 +32,7 @@ function scanSets() {
 
 /* finds the card a guess points to (one set listing + one card request, or the data already on this device) */
 async function findCard(g) {
-  const local = UPCOMING[g.setId] ? { cards: UPCOMING[g.setId].cards.map(c => ({ ...c, id: `${g.setId}-${c.n}`, setId: g.setId, v: upcomingVariants(c), ok: 1 })) } : await peekSet(g.setId);
+  const local = UPCOMING[g.setId] ? { cards: UPCOMING[g.setId].cards.map(c => ({ ...c, id: `${g.setId}-${c.n}`, setId: g.setId, v: upcomingVariants(c), p: priceHint(g.setId, c.n), ok: 1 })) } : await peekSet(g.setId);
   const known = local?.cards?.find(c => !c.linked && !c.grp && sameNumber(c.src || c.n, g.num));
   if (known?.ok && known.v?.length) return { ...known, img: known.img || scanBase(g.setId, known.n) };
   const s = await getJSON(`${API}/sets/${encodeURIComponent(g.setId)}`);
@@ -65,6 +66,7 @@ export async function renderScan() {
   </div>`;
   $("#scanmanual").onsubmit = e => { e.preventDefault(); const t = $("#scanq").value.trim(); if (t) lookup(t, true); };
 
+  import("../scan/ocr.js").then(m => m.getReaders()).catch(() => {});   // start the readers now, while the camera opens
   if (!S.SERIES?.length) { try { S.SERIES = await loadSeries(); } catch { /* the manual search will say so */ } }
   if (!navigator.mediaDevices?.getUserMedia) { state("Caméra indisponible ici. Tu peux taper le code et le numéro ci-dessous.", "bad"); return; }
   try {
@@ -148,11 +150,19 @@ function startLoop() {
       busy = true;
       try {
         const { readFrame, frameInVideo } = await import("../scan/ocr.js");
-        const text = await readFrame(video, frameInVideo(video, $("#scanframe")));
-        const guesses = guessCards(parseScan(text), scanSets());
-        if (DEBUG) console.log("[scan] read:", JSON.stringify(text), "→", guesses.slice(0, 3).map(x => x.setId + " " + x.num).join(", "));
-        const sure = voter.add(guesses);
-        if (sure && !paused) { voter.reset(); busy = false; await show(guesses.filter(x => x !== sure).slice(0, 4), sure); return; }
+        const t0 = performance.now();
+        const texts = await readFrame(video, frameInVideo(video, $("#scanframe")));
+        const sets = scanSets();
+        // each clean-up is one reading; a card is sure when two readings agree (the same frame read two ways, or two frames)
+        let sure = null, guesses = [];
+        for (const text of texts) {
+          const g = guessCards(parseScan(text), sets);
+          if (!guesses.length) guesses = g;
+          sure = sure || voter.add(g);
+        }
+        if (!guesses.length) guesses = guessCards(parseScan(texts.join("\n")), sets);
+        if (DEBUG) console.log("[scan] read:", JSON.stringify(texts.join(" | ")), "→", guesses.slice(0, 3).map(x => x.setId + " " + x.num).join(", "), Math.round(performance.now() - t0) + " ms");
+        if (sure && !paused) { voter.reset(); busy = false; await show(guesses.filter(x => x.setId !== sure.setId || x.num !== sure.num).slice(0, 4), sure); return; }
         state(guesses.length ? "Je crois voir une carte, garde-la immobile…" : "Cherche le bas de la carte…");
       } catch (e) {
         console.warn("[scan]", e);
@@ -161,7 +171,7 @@ function startLoop() {
       }
       busy = false;
     }
-    if (!paused) timer = setTimeout(tick, 250);
+    if (!paused) timer = setTimeout(tick, 40);
   };
   tick();
 }

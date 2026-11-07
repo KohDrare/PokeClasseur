@@ -8,7 +8,7 @@ import { askMotion, attachTilt } from "../features/tilt.js";
 import { renderCollection } from "../pages/collection.js";
 import { renderSetStats } from "../pages/set-stats.js";
 import { drawCards, refreshCounts } from "../pages/set.js";
-import { condFactor, isFav, ownedAny, qtyOf, setFav, setQty } from "../state/collection.js";
+import { LANGS, condFactor, isFav, langOf, ownedAny, qtyOf, setFav, setLang, setQty } from "../state/collection.js";
 import { S } from "../state/shared.js";
 import { unToggleWish } from "../union/feed.js";
 import { regionOf, sprite } from "../pages/pokedex.js";
@@ -46,6 +46,7 @@ export function openCard(card, seq, startV) {
         </dl>
         <div class="h3">Ma collection</div>
         <div class="versions" id="vers">${variantsOf(c).map(v => verRow(c, v, v === pv)).join("")}</div>
+          ${ownedAny(c.id) ? `<div class="langrow" id="m-lang"><span>Langue</span>${Object.entries(LANGS).map(([k, x]) => `<button class="${langOf(c.id) === k ? "on" : ""}" data-l="${k}" aria-pressed="${langOf(c.id) === k}">${x.flag} ${k}</button>`).join("")}</div>` : ""}
         ${variantsOf(c).length > 1 ? `<p class="note" style="margin-top:8px">Clique sur une version pour la voir sur la carte.</p>` : ""}
         <div class="navrow">
           <button class="pill ghost" id="m-prev" ${idx === 0 ? "disabled" : ""}>${ICON.prev}</button>
@@ -130,6 +131,7 @@ export function openCard(card, seq, startV) {
         </div>
         <div class="h3">Ma collection</div>
         <div class="versions" id="vers">${variantsOf(c).map(v => verRow(c, v, v === pv)).join("")}</div>
+        ${ownedAny(c.id) ? `<div class="langrow" id="m-lang"><span>Langue</span>${Object.entries(LANGS).map(([k, x]) => `<button class="${langOf(c.id) === k ? "on" : ""}" data-l="${k}" aria-pressed="${langOf(c.id) === k}">${x.flag} ${k}</button>`).join("")}</div>` : ""}
         <dl class="cp-rows">
           ${row("Extension", esc(c.linked ? nInfo.promoSet || "Promo" : nInfo.name || c._setName || ""))}
           ${row("Série", esc(nInfo.serie?.name || ""))}
@@ -191,6 +193,7 @@ export function openCard(card, seq, startV) {
       const rw = e.target.closest(".ver"); if (!rw || rw.dataset.v === pv) return;
       pv = rw.dataset.v; showFoil();
     };
+    bindLang(() => { const y = sc.scrollTop; draw(); $("#cp-scroll").scrollTop = y; });
     root.querySelector(".cp-rel")?.addEventListener("click", e => {
       const b = e.target.closest("[data-rel]"); if (!b) return;
       const j = seq.findIndex(x => x.id === b.dataset.rel);
@@ -200,6 +203,8 @@ export function openCard(card, seq, startV) {
   };
   /* open this Pokémon in the Pokédex */
   const goDex = n => { close(); location.hash = `#/pokedex/${regionOf(n)?.id || "national"}/${n}`; };
+  /* language buttons of the copy you own */
+  const bindLang = redraw => { const r = $("#m-lang"); if (r) r.onclick = e => { const b = e.target.closest("[data-l]"); if (!b) return; setLang(seq[idx].id, b.dataset.l); changed = true; redraw(); }; };
   let changed = false;
   const key = e => { if (e.key === "Escape") close(); if (e.key === "ArrowRight" && idx < seq.length - 1) { idx++; draw(); } if (e.key === "ArrowLeft" && idx > 0) { idx--; draw(); } };
   function close() { untilt(); root.innerHTML = ""; document.removeEventListener("keydown", key); document.body.style.overflow = ""; if (changed) { if (location.hash.startsWith("#/stats/")) { const y = scrollY; renderSetStats(decodeURIComponent(location.hash.slice(8))).then(() => scrollTo(0, y)); } else if ($("#cards") && S.CUR) { const y = scrollY; drawCards(); refreshCounts(); scrollTo(0, y); } else if (location.hash.startsWith("#/collection")) renderCollection(); } }

@@ -48,7 +48,8 @@ export function mergeCols(a, b) {
       cur.s = e.s || cur.s;
       if (e.d?.length) cur.d = e.d;
       if (e.f) cur.f = 1;
-      if (e.c) cur.c = e.c;                                 // condition of the copy (kept on this device)                                   // favourite (kept on this device)
+      if (e.c) cur.c = e.c;
+      if (e.l) cur.l = e.l;                                 // language of the copy (kept on this device)                                 // condition of the copy (kept on this device)                                   // favourite (kept on this device)
       if (e.t) cur.t = Math.min(cur.t || e.t, e.t);         // first added
       for (const [v, q] of Object.entries(e.v || {})) cur.v[v] = Math.max(cur.v[v] || 0, q);
     }

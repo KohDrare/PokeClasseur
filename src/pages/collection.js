@@ -6,7 +6,7 @@ import { $, ICON, esc } from "../lib/core.js";
 import { LS } from "../lib/storage.js";
 import { imgTag, numLabel, setNav } from "../lib/ui.js";
 import { dexCounts } from "./pokedex.js";
-import { condFactor, isFav, ownedAny, ownedBySet } from "../state/collection.js";
+import { LANGS, condFactor, isFav, langOf, ownedAny, ownedBySet } from "../state/collection.js";
 import { SORTS, sortItems } from "../features/colsort.js";
 import { S } from "../state/shared.js";
 import { UN } from "../union/store.js";
@@ -164,7 +164,7 @@ function drawChart(days, now) {
 /* ---------- sort sheet ---------- */
 function drawSortLabel() {
   const s = SORTS.find(x => x.k === pref.k) || SORTS[4];
-  $("#col-sortl").innerHTML = `${esc(s.l.replace("Par ", "").replace(/^./, m => m.toUpperCase()))} <i class="sdir ${pref.d > 0 ? "" : "down"}">${ARROW_UP}</i>`;
+  $("#col-sortl").innerHTML = `${pref.lang && pref.lang !== "all" ? LANGS[pref.lang].flag + " · " : ""}${esc(s.l.replace("Par ", "").replace(/^./, m => m.toUpperCase()))} <i class="sdir ${pref.d > 0 ? "" : "down"}">${ARROW_UP}</i>`;
 }
 function openSort(items) {
   const root = $("#modal-root");
@@ -176,10 +176,13 @@ function openSort(items) {
       <h2>Trier</h2>
       <div class="sortlist">${SORTS.map(s => `<button class="sortopt ${pref.k === s.k ? "on" : ""}" data-k="${s.k}"><span>${s.l}</span>${svg(s.i)}${pref.k === s.k ? `<i class="sdir ${pref.d > 0 ? "" : "down"}" title="${pref.d > 0 ? "Croissant" : "Décroissant"}">${ARROW_UP}</i>` : ""}</button>`).join("")}</div>
       <p class="note">Touche encore le tri choisi pour inverser l'ordre.</p>
+      <h3 class="sorth">Langue des cartes</h3>
+      <div class="seg sortlang" id="sortlang">${[["all", "Toutes"], ...Object.entries(LANGS).map(([k, x]) => [k, `${x.flag} ${k}`])].map(([k, l]) => `<button data-lang="${k}" class="${(pref.lang || "all") === k ? "on" : ""}">${l}</button>`).join("")}</div>
       <button class="cp-close sortclose" id="m-close" aria-label="Fermer">${ICON.x}</button>
     </div></div>`;
     $("#m-close").onclick = close;
     $("#mdl").onclick = e => { if (e.target.id === "mdl") close(); };
+    $("#sortlang").onclick = e => { const b = e.target.closest("[data-lang]"); if (!b) return; pref.lang = b.dataset.lang; LS.set("pc-colsort", pref); drawSortLabel(); drawBody(items); draw(); };
     root.querySelector(".sortlist").onclick = e => {
       const b = e.target.closest("[data-k]"); if (!b) return;
       const s = SORTS.find(x => x.k === b.dataset.k);
@@ -193,7 +196,7 @@ function openSort(items) {
 
 /* ---------- the cards ---------- */
 const tile = (x, i) => `<div class="tile owned">
-    <button class="cardimg" data-i="${i}" aria-label="${esc(x.c.name)}">${imgTag(x.c, "low")}${fxHTML(foilOf(x.c))}${isFav(x.c.id) ? `<span class="favtag" aria-label="Favorite">★</span>` : ""}</button>
+    <button class="cardimg" data-i="${i}" aria-label="${esc(x.c.name)}">${imgTag(x.c, "low")}${fxHTML(foilOf(x.c))}${isFav(x.c.id) ? `<span class="favtag" aria-label="Favorite">★</span>` : ""}${langOf(x.c.id) !== "FR" ? `<span class="langtag" title="${LANGS[langOf(x.c.id)].l}">${LANGS[langOf(x.c.id)].flag}</span>` : ""}</button>
     ${x.q > 1 ? `<span class="qty">×${x.q}</span>` : ""}
     <div class="cap"><span class="n">${esc(numLabel(x.c, x.info))}</span>${symHTML(x.c.r)}<span class="nm">${esc(x.c.name)}</span><span class="pr">${x.unit ? eur(x.unit) : ""}</span></div>
   </div>`;
@@ -201,6 +204,7 @@ function drawBody(items) {
   const box = $("#colbody"); if (!box) return;
   const qq = query.trim().toLowerCase();
   let list = sortItems(items, pref.k, pref.d);
+  if (pref.lang && pref.lang !== "all") list = list.filter(x => langOf(x.c.id) === pref.lang);
   if (qq) list = list.filter(x => x.c.name.toLowerCase().includes(qq) || (x.c.n || "").replace(/^0+/, "") === qq.replace(/^0+/, "") || (x.info.name || "").toLowerCase().includes(qq));
   if (!list.length) { box.innerHTML = `<div class="empty-state"><b>Aucune carte</b>Rien ne correspond à « ${esc(query)} ».</div>`; return; }
   if (pref.k === "set") {
