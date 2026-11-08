@@ -111,7 +111,7 @@ export async function loadSet(setId, onProgress) {
   const key = setKey(setId);
   const cached = await idb.get(key);
   const fresh = cached && Date.now() - cached.at < 5 * 864e5 && cached.cards.every(c => c.ok);
-  if (fresh) { cmCheck(cached, key); return cached; }
+  if (fresh) { await cmCheck(cached, key, !cached.info.cmGot, false); return cached; }   // first time: wait for the right prices
   const s = await getJSON(`${API}/sets/${encodeURIComponent(setId)}`).catch(e => { if (UPCOMING[setId]) return null; throw e; });
   if (!s && UPCOMING[setId]) return upcomingSet(setId, key);
   if (!s) throw new Error("Extension introuvable");
@@ -171,9 +171,9 @@ export async function loadSet(setId, onProgress) {
   return res;
 }
 /* Cardmarket's own prices on every card (twice a day at most); first load waits for them, later ones not */
-async function cmCheck(res, key, wait) {
+async function cmCheck(res, key, wait, force = wait) {
   const go = async () => {
-    if (res.info.upcoming || (!wait && res.info.cmGot && Date.now() - res.info.cmGot < 12 * 36e5)) return;
+    if (res.info.upcoming || (!force && res.info.cmGot && Date.now() - res.info.cmGot < 12 * 36e5)) return;
     const changed = await applyCmPrices(res).catch(() => false);
     await idb.set(key, res);
     if (changed && !wait) dispatchEvent(new CustomEvent("prices:changed", { detail: res.info.id }));
@@ -194,4 +194,8 @@ async function upcomingSet(setId, key) {
   await idb.set(key, res);
   return res;
 }
-export async function peekSet(setId) { return idb.get(setKey(setId)); }
+export async function peekSet(setId) {
+  const key = setKey(setId), s = await idb.get(key);
+  if (s) await cmCheck(s, key, true, false);   // Cardmarket prices on it too (no wait once they are there)
+  return s;
+}
