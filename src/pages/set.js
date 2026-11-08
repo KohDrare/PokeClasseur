@@ -95,7 +95,9 @@ export function refreshProgress() {
 export function rarityGroups() {
   const m = new Map();
   for (const c of S.CUR.data.cards) { if (!c.ok || (c.linked && !PREF.versions)) continue; const r = rarity(c.r); const key = r.sym + "|" + r.cls; if (!m.has(key)) m.set(key, { ...r, labels: new Set(), key, n: 0 }); m.get(key).labels.add(c.r || "Sans rareté"); m.get(key).n++; }
-  return [...m.values()].sort((a, b) => (a.sym === "promo") - (b.sym === "promo") || a.rank - b.rank);   // promo always last
+  // promo after the rest, then the 30th Anniversary Pikachu (their own collection inside the set)
+  const tail = g => g.sym === "star-pink" ? 2 : g.sym === "promo" ? 1 : 0;
+  return [...m.values()].sort((a, b) => tail(a) - tail(b) || a.rank - b.rank);
 }
 export function drawSetBody() {
   const body = $("#setbody");

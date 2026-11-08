@@ -1,4 +1,5 @@
 import { getJSON, peekSet } from "../data/tcgdex.js";
+import { priceCheck } from "../data/price-hints.js";
 import { eur } from "../features/variants.js";
 import { $, API, ICON, esc } from "../lib/core.js";
 import { LS } from "../lib/storage.js";
@@ -48,7 +49,7 @@ export function unPickCards(opts, done) {
       $("#pk-ok").disabled = true;
       const full = await Promise.all(picked.map(async c => {
         if (c.set && c.set !== unSetOf(c.id)) return c;
-        try { const d = await getJSON(`${API}/cards/${encodeURIComponent(c.id)}`); const p = d.pricing?.cardmarket || {}; return { id: d.id, name: d.name, img: d.image || "", set: d.set?.name || "", n: d.localId, r: d.rarity || "", p: p.trend || p.avg || 0, dx: d.dexId || [] }; } catch { return c; }
+        try { const d = await getJSON(`${API}/cards/${encodeURIComponent(c.id)}`); const p = d.pricing?.cardmarket || {}; const bad = priceCheck(d.set?.id, d.localId, p.trend || p.avg || 0, d.pricing?.tcgplayer); return { id: d.id, name: d.name, img: d.image || "", set: d.set?.name || "", n: d.localId, r: d.rarity || "", p: bad ? bad.p : p.trend || p.avg || 0, dx: d.dexId || [] }; } catch { return c; }
       }));
       close(); done(full);
     };

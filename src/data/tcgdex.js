@@ -1,5 +1,5 @@
 import { PCX } from "./pokecardex-map.js";
-import { priceHint } from "./price-hints.js";
+import { priceCheck, priceHint } from "./price-hints.js";
 import { CARD_FIX, EXTRA, HIDDEN_SETS, LINKED, MERGED, PATCH_V, UPCOMING, dexFromName, extraCount, isScan, scanBase, upcomingVariants } from "./set-patches.js";
 import { VARIANT_ORDER } from "../features/variants.js";
 import { API, esc } from "../lib/core.js";
@@ -90,9 +90,10 @@ export function patchSeries(data) {
 export function compact(d, setId) {
   const vs = d.variants || {};
   const p = d.pricing?.cardmarket || {};
+  const bad = priceCheck(setId, d.localId, p.trend || p.avg || 0, d.pricing?.tcgplayer);
   return {
     id: d.id, setId, n: d.localId, name: d.name, img: d.image || "", r: d.rarity || "", cat: d.category || "",
-    v: VARIANT_ORDER.filter(k => vs[k]), p: p.trend || p.avg || 0, ph: p["trend-holo"] || p["avg-holo"] || 0,
+    v: VARIANT_ORDER.filter(k => vs[k]), p: bad ? bad.p : p.trend || p.avg || 0, ph: bad ? 0 : p["trend-holo"] || p["avg-holo"] || 0,
     dx: d.dexId || [], il: d.illustrator || "", hp: d.hp || "", t: (d.types || []).join(", "), st: d.stage || "", rm: d.regulationMark || "", ok: 1
   };
 }
