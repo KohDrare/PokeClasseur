@@ -11,7 +11,7 @@ import { LS } from "../lib/storage.js";
 import { fmtDate, imgTag, numLabel, setNav } from "../lib/ui.js";
 import { SETMETA } from "./home.js";
 import { ownedAny, qtyOf, setQty } from "../state/collection.js";
-import { PREF, savePref } from "../state/prefs.js";
+import { PREF, applyGray, savePref } from "../state/prefs.js";
 import { S } from "../state/shared.js";
 
 /* ================= SET ================= */
@@ -86,6 +86,7 @@ export function bindHeroButtons() {
   const pm = $("#hb-promos");
   if (pm) pm.onclick = () => { shut(); PREF.versions = true; savePref(); S.CUR.rar = new Set(["promo|"]); S.CUR.page = 0; drawSetBody(); refreshProgress(); $("#cards").scrollIntoView({ block: "start", behavior: "smooth" }); };
 }
+const GRAY_IC = `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="4" y="3" width="11" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="9" y="6" width="11" height="15" rx="2" fill="currentColor" opacity=".35" stroke="currentColor" stroke-width="1.8"/></svg>`;
 export function refreshProgress() {
   const p = $("#prog"); if (!p) return;
   const k = setCounts();
@@ -114,6 +115,7 @@ export function drawSetBody() {
       <div class="rar"><button class="rbtn ${PREF.own === "have" ? "on" : ""}" id="rb-have" title="Cartes possédées"><svg class="rsvg" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="8.3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7.2 11.3l2.6 2.6 5-5.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>${groups.map(g => `<button class="rbtn ${S.CUR.rar.has(g.key) ? "on" : ""}" data-r="${esc(g.key)}" title="${esc([...g.labels].join(" · "))} (${g.n})"><span class="sym">${symSVG(g.sym)}</span></button>`).join("")}</div>
       <label class="search" for="q-cards">${ICON.search}<input id="q-cards" placeholder="Rechercher une carte (nom ou numéro)" value="${esc(S.CUR.q)}" autocomplete="off"></label>
       <button class="toggle ${PREF.versions ? "on" : ""}" id="tg-versions" title="Afficher chaque version (normale, reverse…) séparément">${ICON.versions} Afficher les versions</button>
+      <button class="toggle ${PREF.gray !== false ? "on" : ""}" id="tg-gray" title="Montrer les cartes manquantes en gris ou en couleur">${GRAY_IC} Griser les manquantes</button>
     </div>
     ${ready ? "" : `<div class="loadbar" id="loadbar"><i style="width:${Math.round(S.CUR.loading * 100)}%"></i></div>`}
     <div class="row2">
@@ -133,6 +135,7 @@ export function drawSetBody() {
   $("#rb-have").onclick = () => setOwn(PREF.own === "have" ? "all" : "have");
   body.querySelectorAll(".rbtn[data-r]").forEach(b => b.onclick = () => { const r = b.dataset.r; S.CUR.rar.has(r) ? S.CUR.rar.delete(r) : S.CUR.rar.add(r); b.classList.toggle("on"); S.CUR.page = 0; drawCards(); });
   $("#q-cards").oninput = e => { S.CUR.q = e.target.value; S.CUR.page = 0; drawCards(); };
+  $("#tg-gray").onclick = e => { PREF.gray = PREF.gray === false; savePref(); applyGray(); e.currentTarget.classList.toggle("on", PREF.gray); };
   $("#tg-versions").onclick = () => {
     PREF.versions = !PREF.versions; savePref(); S.CUR.page = 0;
     if (!PREF.versions) S.CUR.rar.delete("promo|");
@@ -186,11 +189,11 @@ export function mobSheet(kind) {
   </div>`;
   document.body.append(el);
   const box = el.querySelector("#ms-body");
-  const nodes = info ? [$("#sethead .sethero")] : [$("#setbody .search"), $("#setbody .rar"), $("#seg-own"), $("#tg-versions")];
+  const nodes = info ? [$("#sethead .sethero")] : [$("#setbody .search"), $("#setbody .rar"), $("#seg-own"), $("#tg-versions"), $("#tg-gray")];
   nodes.forEach((n, i) => {
     if (!n) return;
     const ph = document.createComment("m"); n.before(ph); moved.push([n, ph]);
-    if (!info) box.insertAdjacentHTML("beforeend", `<div class="mslabel">${["Rechercher", "Rareté", "Afficher", "Versions"][i]}</div>`);
+    if (!info) box.insertAdjacentHTML("beforeend", `<div class="mslabel">${["Rechercher", "Rareté", "Afficher", "Versions", "Cartes manquantes"][i]}</div>`);
     box.append(n);
   });
   const close = () => mobSheet(null);
