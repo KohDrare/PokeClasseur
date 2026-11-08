@@ -12,7 +12,14 @@ let supabase, startSync, stopSync, syncState = { status: "off" }, onSyncState = 
 let openModal = null;   // redraw function of the account window while it is open
 const btn = $("#btn-account");
 
-const friendly = m => /fetch|network/i.test(m || "") ? "Impossible de joindre le serveur. Vérifie ta connexion et réessaie." : /rate|seconds/i.test(m || "") ? "Trop de demandes : attends une minute avant de réessayer." : m;
+const friendly = m => /fetch|network/i.test(m || "") ? "Impossible de joindre le serveur. Vérifie ta connexion et réessaie."
+  : /rate|seconds/i.test(m || "") ? "Trop de demandes : attends une minute avant de réessayer."
+  : /invalid login/i.test(m || "") ? "E-mail ou mot de passe incorrect."
+  : /not confirmed/i.test(m || "") ? "Adresse pas encore confirmée : clique d'abord sur le lien reçu par e-mail (une seule fois)."
+  : /already registered|already exists/i.test(m || "") ? "Un compte existe déjà avec cette adresse : connecte-toi avec ton mot de passe."
+  : /password.*(6|least|short)/i.test(m || "") ? "Le mot de passe doit faire au moins 6 caractères."
+  : m;
+let recovering = false;   // opened from the "new password" e-mail
 const STATUS_TEXT = { off: "Non connecté", syncing: "Synchronisation…", ok: "Collection synchronisée", error: "Erreur de synchronisation", offline: "Hors ligne : la synchro reprendra au retour du réseau" };
 
 const BTN_ICON = btn ? btn.innerHTML : "";
@@ -28,7 +35,7 @@ addEventListener("cloud:changed", () => { paintButton(); openModal?.(); });
 
 export function openAccount() {
   const root = $("#modal-root");
-  let step = "email", email = "", busy = false, msg = "";
+  let step = recovering ? "newpass" : "login", email = "", busy = false, msg = "", info = "";
   const close = () => { root.innerHTML = ""; document.body.style.overflow = ""; document.removeEventListener("keydown", key); off(); openModal = null; };
   const key = e => { if (e.key === "Escape") close(); };
   const off = onSyncState(() => session && draw());
@@ -36,7 +43,7 @@ export function openAccount() {
 
   const draw = () => {
     const n = Object.keys(S.COL.cards).length;
-    const body = session ? `
+    const body = session && step !== "newpass" ? `
       <h2>Mon compte</h2>
       <p class="note">${esc(session.user.email)}</p>
       ${cloud.profile?.handle
@@ -45,17 +52,35 @@ export function openAccount() {
       <div class="acc-status st-${syncState.status}"><i></i><div><b>${STATUS_TEXT[syncState.status]}</b><small>${n} carte${n > 1 ? "s" : ""} dans ta collection${syncState.at ? ` · dernière synchro ${new Date(syncState.at).toLocaleTimeString("fr-BE", { hour: "2-digit", minute: "2-digit" })}` : ""}</small>${syncState.status === "error" ? `<small class="err">${esc(syncState.error)}</small>` : ""}</div></div>
       <p class="note">Ta collection et tes achats sont enregistrés dans ton compte : connecte-toi sur un autre appareil pour les retrouver.</p>
       <div class="acts"><button class="pill" id="acc-sync">Synchroniser maintenant</button><button class="pill ghost" id="acc-out">Se déconnecter</button></div>`
-    : step === "email" ? `
-      <h2>Se connecter</h2>
-      <p class="note">Pas de mot de passe : on t'envoie un lien de connexion par e-mail. Ta collection actuelle sera ajoutée à ton compte.</p>
-      <form id="acc-form" class="acc-form"><label for="acc-email">Adresse e-mail</label><input id="acc-email" type="email" autocomplete="email" required value="${esc(email)}" placeholder="toi@exemple.be"><button class="pill" ${busy ? "disabled" : ""}>${busy ? "Envoi…" : "Recevoir le lien"}</button></form>
+    : step === "login" || step === "signup" ? `
+      <h2>${step === "login" ? "Se connecter" : "Créer un compte"}</h2>
+      <p class="note">${step === "login" ? "Connecte-toi avec le même compte sur ton téléphone et ton ordinateur : ta collection se met à jour partout." : "Choisis ton adresse e-mail et un mot de passe. Ta collection actuelle sera ajoutée à ton compte."}</p>
+      <form id="acc-pass" class="acc-form">
+        <label for="acc-email">Adresse e-mail</label><input id="acc-email" type="email" autocomplete="email" required value="${esc(email)}" placeholder="toi@exemple.be">
+        <label for="acc-pw">Mot de passe</label><input id="acc-pw" type="password" minlength="6" required autocomplete="${step === "login" ? "current-password" : "new-password"}" placeholder="${step === "login" ? "" : "6 caractères minimum"}">
+        <button class="pill" ${busy ? "disabled" : ""}>${busy ? "Un instant…" : step === "login" ? "Se connecter" : "Créer mon compte"}</button></form>
+      ${msg ? `<p class="note err">${esc(msg)}</p>` : ""}${info ? `<p class="note ok">${info}</p>` : ""}
+      <div class="acc-links">
+        <button class="linkbtn" id="acc-mode">${step === "login" ? "Pas encore de compte ? Créer un compte" : "J'ai déjà un compte : me connecter"}</button>
+        ${step === "login" ? `<button class="linkbtn" id="acc-forgot">Mot de passe oublié</button>` : ""}
+        <button class="linkbtn" id="acc-magic">Recevoir plutôt un lien par e-mail</button>
+      </div>`
+    : step === "newpass" ? `
+      <h2>Nouveau mot de passe</h2>
+      <form id="acc-new" class="acc-form"><label for="acc-pw2">Nouveau mot de passe</label><input id="acc-pw2" type="password" minlength="6" required autocomplete="new-password" placeholder="6 caractères minimum"><button class="pill" ${busy ? "disabled" : ""}>${busy ? "Un instant…" : "Enregistrer"}</button></form>
       ${msg ? `<p class="note err">${esc(msg)}</p>` : ""}`
+    : step === "email" ? `
+      <h2>Lien de connexion</h2>
+      <p class="note">On t'envoie un lien de connexion par e-mail. Sur iPhone, le lien s'ouvre dans Safari : si tu utilises l'app depuis l'écran d'accueil, connecte-toi plutôt avec un mot de passe.</p>
+      <form id="acc-form" class="acc-form"><label for="acc-email">Adresse e-mail</label><input id="acc-email" type="email" autocomplete="email" required value="${esc(email)}" placeholder="toi@exemple.be"><button class="pill" ${busy ? "disabled" : ""}>${busy ? "Envoi…" : "Recevoir le lien"}</button></form>
+      ${msg ? `<p class="note err">${esc(msg)}</p>` : ""}
+      <button class="linkbtn" id="acc-back">Me connecter avec un mot de passe</button>`
     : `
       <h2>Vérifie tes e-mails</h2>
       <p class="note">Un e-mail a été envoyé à <b>${esc(email)}</b>. Clique sur le lien qu'il contient pour te connecter. Si l'e-mail contient aussi un code à 6 chiffres, tu peux le taper ici.</p>
       <form id="acc-code" class="acc-form"><label for="acc-otp">Code</label><input id="acc-otp" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required placeholder="123456"><button class="pill" ${busy ? "disabled" : ""}>${busy ? "Vérification…" : "Valider"}</button></form>
       ${msg ? `<p class="note err">${esc(msg)}</p>` : ""}
-      <button class="linkbtn" id="acc-back">Changer d'adresse</button>`;
+      <button class="linkbtn" id="acc-back">Me connecter avec un mot de passe</button>`;
     root.innerHTML = `<div class="modal" id="mdl"><div class="sheet formsheet acc" role="dialog" aria-modal="true" aria-label="Compte"><button class="iconbtn close" id="m-close" aria-label="Fermer">${ICON.x}</button><div class="info">${body}</div></div></div>`;
     $("#m-close").onclick = close; $("#mdl").onclick = e => { if (e.target.id === "mdl") close(); };
     const f = $("#acc-form");
@@ -64,13 +89,43 @@ export function openAccount() {
       const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
       busy = false; if (error) msg = friendly(error.message); else step = "code"; draw();
     }; }
+    const redirect = location.origin + location.pathname;
+    const pf = $("#acc-pass");
+    if (pf) { (email ? $("#acc-pw") : $("#acc-email")).focus(); pf.onsubmit = async e => {
+      e.preventDefault(); email = $("#acc-email").value.trim(); const password = $("#acc-pw").value; busy = true; msg = ""; info = ""; draw();
+      if (step === "login") {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        busy = false; if (error) msg = friendly(error.message); draw();
+      } else {
+        const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: redirect } });
+        busy = false;
+        if (error) msg = friendly(error.message);
+        else if (!data.session) { step = "login"; info = `Compte créé. Clique une fois sur le lien de confirmation envoyé à <b>${esc(email)}</b>, puis connecte-toi ici avec ton mot de passe.`; }
+        draw();
+      }
+    }; }
+    const md = $("#acc-mode"); if (md) md.onclick = () => { step = step === "login" ? "signup" : "login"; msg = info = ""; draw(); };
+    const mg = $("#acc-magic"); if (mg) mg.onclick = () => { email = $("#acc-email").value.trim(); step = "email"; msg = info = ""; draw(); };
+    const fg = $("#acc-forgot"); if (fg) fg.onclick = async () => {
+      email = $("#acc-email").value.trim();
+      if (!email) { msg = "Tape d'abord ton adresse e-mail."; draw(); return; }
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: redirect });
+      msg = error ? friendly(error.message) : ""; info = error ? "" : `E-mail envoyé à <b>${esc(email)}</b> : clique sur le lien pour choisir un nouveau mot de passe.`; draw();
+    };
+    const nf = $("#acc-new");
+    if (nf) { $("#acc-pw2").focus(); nf.onsubmit = async e => {
+      e.preventDefault(); busy = true; msg = ""; draw();
+      const { error } = await supabase.auth.updateUser({ password: $("#acc-pw2").value });
+      busy = false; if (error) { msg = friendly(error.message); draw(); return; }
+      recovering = false; step = "login"; toast("Mot de passe enregistré"); draw();
+    }; }
     const c = $("#acc-code");
     if (c) { $("#acc-otp").focus(); c.onsubmit = async e => {
       e.preventDefault(); busy = true; msg = ""; draw();
       const { error } = await supabase.auth.verifyOtp({ email, token: $("#acc-otp").value.trim(), type: "email" });
       busy = false; if (error) { msg = "Code incorrect ou expiré."; draw(); }
     }; }
-    const back = $("#acc-back"); if (back) back.onclick = () => { step = "email"; msg = ""; draw(); };
+    const back = $("#acc-back"); if (back) back.onclick = () => { step = "login"; msg = ""; draw(); };
     const pr = $("#acc-prof"); if (pr) pr.onclick = close;
     const sy = $("#acc-sync"); if (sy) sy.onclick = () => startSync(session.user.id);
     const out = $("#acc-out"); if (out) out.onclick = async () => { await supabase.auth.signOut(); toast("Déconnecté. Ta collection reste sur cet appareil."); close(); };
@@ -89,6 +144,7 @@ if (cloudEnabled && btn) {
   setCloud({ supabase });
   onSyncState(paintButton);
   supabase.auth.onAuthStateChange((event, s) => {
+    if (event === "PASSWORD_RECOVERY") { recovering = true; setTimeout(() => { if (!openModal) openAccount(); }, 0); }
     const was = session?.user.id;
     session = s;
     if (s?.user.id !== was) setCloud({ user: s?.user || null, profile: null, ready: true });
