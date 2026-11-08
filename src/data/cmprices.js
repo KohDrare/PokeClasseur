@@ -7,7 +7,7 @@ import { idb } from "../lib/storage.js";
 
 const BASE = import.meta.env.BASE_URL || "/";
 const mem = new Map();
-export const CM_V = 2;   // raise to make every device take the price files again at once
+export const CM_V = 3;   // raise to make every device take the price files again at once
 const median = xs => { const v = xs.filter(x => x > 0).sort((a, b) => a - b); if (!v.length) return 0; const m = v.length >> 1; return Math.round((v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2) * 100) / 100; };
 
 /** { at, c: { number → line } } of an extension, or null when there is none (kept 12 h on this device) */
@@ -30,7 +30,7 @@ export function cmSet(setId) {
 /** the figures of one card from a line: { normal, reverse } with trend/avg1/avg7/avg30/low and the fair price */
 export function cmFigures(line) {
   if (!line) return null;
-  const f = (t, a1, a7, a30, lo) => ({ trend: t, avg1: a1, avg7: a7, avg30: a30, low: lo, fair: median([t, a7, a30]) || t || a7 || a30 || 0 });
+  const f = (t, a1, a7, a30, lo) => ({ trend: t, avg1: a1, avg7: a7, avg30: a30, low: lo, fair: t || median([a7, a30]) || 0 });
   return { id: line[0], normal: f(line[1], line[2], line[3], line[4], line[5]), reverse: f(line[6], line[7], line[8], line[9], line[10]) };
 }
 const setOf = id => id.slice(0, id.lastIndexOf("-"));

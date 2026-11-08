@@ -5,7 +5,10 @@
 import { img, loadSet } from "../data/tcgdex.js";
 import { idb } from "../lib/storage.js";
 
-const GW = 18, GH = 25, CW = 6, CH = 8, V = 2;   // V: version of the print format (cache key)
+const GW = 18, GH = 25, CW = 6, CH = 8, V = 3;
+// the artwork window of a card: never foil on a reverse, so it still matches when the rest sparkles
+const ART = { x: 0.08, y: 0.11, w: 0.84, h: 0.42 };
+const artOf = (sx, sy, sw, sh) => [sx + sw * ART.x, sy + sh * ART.y, sw * ART.w, sh * ART.h];   // V: version of the print format (cache key)
 const mem = new Map();                            // setId → Promise<[{ id, n, g, c }]>
 
 /* print of a card picture (canvas or image, already cut to the card) */
@@ -32,7 +35,7 @@ function printOf(src, sx = 0, sy = 0, sw = src.width, sh = src.height) {
 }
 /* print of the camera picture, ignoring the reflections of a shiny card: pixels that are almost white and
    colourless (the lamp seen in the foil) are left out, and a cell mostly covered by them is not compared */
-export const OPT = { glare: 215, sat: 0.22, cover: 0.35, cw: 0.5 };
+export const OPT = { glare: 215, sat: 0.22, cover: 0.35, cw: 0.5, art: 0.02 };
 const FX = 3;                                      // fine pixels per print cell, each way
 function camPrint(src, sx, sy, sw, sh) {
   const mx = sw * 0.05, my = sh * 0.04, FW = GW * FX, FH = GH * FX;
@@ -82,15 +85,16 @@ export function setPrints(setId, onProgress) {
   const p = (async () => {
     const key = `prints${V}:${setId}`;
     const cached = await idb.get(key);
-    if (cached?.length) return cached.map(x => ({ ...x, g: new Float32Array(x.g), c: new Float32Array(x.c) }));
+    if (cached?.length) return cached.map(x => ({ id: x.id, n: x.n, g: new Float32Array(x.g), c: new Float32Array(x.c), a: { g: new Float32Array(x.ag), c: new Float32Array(x.ac) } }));
     const s = await loadSet(setId);
     const cards = s.cards.filter(c => c.img && !c.linked);
     let done = 0;
     const prints = (await pool(cards, 8, async c => {
-      try { const im = await loadImg(img(c.img, "low")); return { id: c.id, n: c.n, ...printOf(im) }; }
+      try { const im = await loadImg(img(c.img, "low")); return { id: c.id, n: c.n, ...printOf(im), a: printOf(im, ...artOf(0, 0, im.width, im.height)) }; }
       catch { return null; } finally { onProgress?.(++done, cards.length); }
     })).filter(Boolean);
-    if (prints.length) await idb.set(key, prints.map(x => ({ id: x.id, n: x.n, g: [...x.g].map(v => Math.round(v * 100) / 100), c: [...x.c].map(v => Math.round(v * 100) / 100) })));
+    const r2 = a => [...a].map(v => Math.round(v * 100) / 100);
+    if (prints.length) await idb.set(key, prints.map(x => ({ id: x.id, n: x.n, g: r2(x.g), c: r2(x.c), ag: r2(x.a.g), ac: r2(x.a.c) })));
     return prints;
   })().catch(e => { mem.delete(setId); throw e; });
   mem.set(setId, p);
@@ -100,12 +104,13 @@ export const printsReady = setId => mem.has(setId);
 
 /* compares the card inside the frame with the prints; returns { setId, id, n, d, gap } of the best match */
 export function matchFrame(video, rect, sets) {
-  const tries = [camPrint(video, rect.x, rect.y, rect.w, rect.h)];
   // the card may sit a little inside the frame
-  const k = 0.06; tries.push(camPrint(video, rect.x + rect.w * k / 2, rect.y + rect.h * k / 2, rect.w * (1 - k), rect.h * (1 - k)));
+  const k = 0.06, crops = [[rect.x, rect.y, rect.w, rect.h], [rect.x + rect.w * k / 2, rect.y + rect.h * k / 2, rect.w * (1 - k), rect.h * (1 - k)]];
+  const tries = crops.map(r => camPrint(video, ...r)), arts = crops.map(r => camPrint(video, ...artOf(...r)));
   let best = null, second = Infinity;
   for (const { setId, prints } of sets) for (const p of prints) {
-    const d = Math.min(...tries.map(t => dist(t, p)));
+    // whole card, or the artwork alone (a reverse: the foil around it changes everything else)
+    const d = Math.min(...tries.map(t => dist(t, p)), ...(p.a ? arts.map(t => dist(t, p.a) + OPT.art) : []));
     if (!best || d < best.d) { if (best) second = Math.min(second, best.d); best = { setId, id: p.id, n: p.n, d }; }
     else if (d < second) second = d;
   }

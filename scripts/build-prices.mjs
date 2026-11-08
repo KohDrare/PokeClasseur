@@ -119,10 +119,11 @@ await pool(sets, 4, async ({ id }) => {
     const t = link(c)?.idProduct, o = out[c.localId]?.[0];
     if (t && o && t !== o) { report.fixed++; if (report.examples.length < 15) report.examples.push(`${c.id} ${c.name}: TCGdex ${t} (${price.get(t)?.trend}) → ${o} (${price.get(o)?.trend})`); }
   }
-  for (const k of Object.keys(out)) if (!out[k]) delete out[k];
+  // only the corrected cards go in the file: the others keep TCGdex's price, as before
+  for (const c of cards) if (!out[c.localId] || out[c.localId][0] === link(c)?.idProduct) delete out[c.localId];
   report.sets++; report.cards += cards.length; report.matched += Object.keys(out).length;
   await fs.writeFile(path.join(OUT, `${id}.json`), JSON.stringify({ at: guide.createdAt, exp, c: out }));
 });
 await fs.writeFile(path.join(OUT, "index.json"), JSON.stringify({ at: guide.createdAt, sets: report.sets }));
-console.log(`prix Cardmarket : ${report.matched}/${report.cards} cartes dans ${report.sets} extensions ; ${report.fixed} liens TCGdex corrigés`);
+console.log(`prix Cardmarket : ${report.matched} cartes corrigées sur ${report.cards}, dans ${report.sets} extensions`);
 report.examples.forEach(x => console.log("  " + x));

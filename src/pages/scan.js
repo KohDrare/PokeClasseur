@@ -83,7 +83,7 @@ export async function renderScan() {
   fillSetPicker();
   if (!navigator.mediaDevices?.getUserMedia) { state("Caméra indisponible ici. Tu peux taper le code et le numéro ci-dessous.", "bad"); return; }
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 2560 }, height: { ideal: 1440 } }, audio: false });
   } catch (e) {
     state(e.name === "NotAllowedError" ? "Accès à la caméra refusé. Autorise-le dans les réglages du navigateur, ou tape le code ci-dessous." : "Impossible d'ouvrir la caméra. Tu peux taper le code et le numéro ci-dessous.", "bad");
     return;
@@ -91,6 +91,7 @@ export async function renderScan() {
   if (!location.hash.startsWith("#/scan")) { stopScanner(); return; }   // left the page meanwhile
   const video = $("#scanvid"); video.srcObject = stream; await video.play().catch(() => {});
   const track = stream.getVideoTracks()[0], caps = track.getCapabilities?.() || {};
+  if (caps.focusMode?.includes("continuous")) track.applyConstraints({ advanced: [{ focusMode: "continuous" }] }).catch(() => {});
   if (caps.torch) { const b = $("#scantorch"); b.hidden = false; let on = false; b.onclick = () => { on = !on; track.applyConstraints({ advanced: [{ torch: on }] }).catch(() => {}); b.classList.toggle("on", on); }; }
   state("Chargement de la lecture…");
   prepare(candidateSets());
@@ -158,7 +159,8 @@ function startPictureLoop() {
         const m = matchFrame(video, frameInVideo(video, $("#scanframe")), sets);
         if (DEBUG && m) console.log("[scan] picture:", m.id, m.d.toFixed(3), "gap", m.gap.toFixed(3));
         // reflections of a shiny card are left out of the comparison (imgmatch), so a slightly looser rule is safe
-        const good = m && m.d < 0.5 && m.gap > 0.12;
+        // (a reverse is often recognised by its artwork only: closer scores, so a second rule for those)
+        const good = m && ((m.d < 0.5 && m.gap > 0.12) || (m.d < 0.42 && m.gap > 0.06));
         const shine = m && m.glare > 0.2 && !good;
         if (shine) state("Reflet sur la carte : incline-la un peu pour éviter la lumière", "warn");
         else if (warned) state("Cherche la carte…");

@@ -28,7 +28,7 @@ function figures(cm, v) {
   const f = { trend: cm["trend" + h], avg1: cm["avg1" + h], avg7: cm["avg7" + h], avg30: cm["avg30" + h], low: cm["low" + h], avg: cm["avg" + h] };
   if (h && !f.trend && !f.avg7 && !f.avg30) return figures(cm, "normal");   // no foil prices: fall back
   // fair price: middle of the trend and the 7- and 30-day averages (one strange sale cannot move it much)
-  f.fair = median([f.trend, f.avg7, f.avg30]) || f.avg || f.trend || 0;
+  f.fair = f.trend || f.avg || median([f.avg7, f.avg30]) || 0;   // the trend, as Cardmarket shows it
   const pts = [f.avg30, f.avg7, f.avg1].filter(x => x > 0);
   f.lo = pts.length ? Math.min(...pts) : 0; f.hi = pts.length ? Math.max(...pts) : 0;
   return f;
@@ -89,7 +89,7 @@ export async function openPricePage(c, info, startV, onChange) {
           <div class="pp-val">${eur(Math.max(0.02, fair * k.f))}</div>
           ${k.k !== "NM" ? `<div class="note">Comme neuve : ${eur(fair)}</div>` : ""}`; })()}
           ${f.lo && f.hi && f.hi - f.lo > 0.01 ? `<div class="note">Fourchette récente (comme neuve) : ${eur(f.lo)} – ${eur(f.hi)}</div>` : ""}
-          ${f.cmOwn && f.cmWrong ? `<div class="note">Prix de la fiche Cardmarket de cette carte. (La base de cartes TCGdex la confondait avec une autre version à ${eur(f.cmWrong)}.)</div>` : ""}
+          ${f.cmOwn && f.cmWrong ? `<div class="note">Prix corrigé : la base de cartes la confondait avec une autre carte sur Cardmarket (${eur(f.cmWrong)}).</div>` : ""}
           ${f.hint && f.cmWrong ? `<div class="note">La base de prix associe cette carte à une autre version sur Cardmarket (${eur(f.cmWrong)}) : ${f.src === "tcgplayer" ? "prix TCGplayer converti en euros utilisé à la place" : "prix relevé à la main utilisé à la place"}.</div>` : ""}
           ${f.hint && f.src === "hint" && !f.cmWrong ? `<div class="note">Prix relevé à la main le ${new Date(PRICE_DATE[c.setId] || Date.now()).toLocaleDateString("fr-BE", { day: "numeric", month: "long" })} (ventes Cardmarket) : l'extension est trop récente pour la base de prix.</div>` : ""}
         </div>
@@ -108,7 +108,7 @@ export async function openPricePage(c, info, startV, onChange) {
         <a class="pill ghost" target="_blank" rel="noopener" href="https://www.ebay.fr/sch/i.html?_nkw=${q}&LH_Sold=1&LH_Complete=1">eBay · vendues</a>
         <a class="pill ghost" target="_blank" rel="noopener" href="https://www.vinted.fr/catalog?search_text=${q}">Vinted</a>
       </div>
-      <p class="note pp-foot">Le prix estimé est la valeur du milieu entre la tendance Cardmarket et ses moyennes sur 7 et 30 jours : une vente isolée trop chère ou bradée ne le fausse pas. Les prix viennent du guide des prix publié chaque jour par Cardmarket, pris sur la fiche de cette carte précise. Les prix par état suivent les écarts habituels sur Cardmarket. Pour voir les dernières ventes une par une, ouvre « eBay · vendues ».${!f?.cmOwn && cm?.updated ? ` Mis à jour le ${new Date(cm.updated).toLocaleDateString("fr-BE", { day: "numeric", month: "long" })}.` : ""}</p>`;
+      <p class="note pp-foot">Le prix estimé est la tendance Cardmarket, comme sur la fiche de la carte. Les prix par état suivent les écarts habituels sur Cardmarket. Pour voir les dernières ventes une par une, ouvre « eBay · vendues ».${!f?.cmOwn && cm?.updated ? ` Mis à jour le ${new Date(cm.updated).toLocaleDateString("fr-BE", { day: "numeric", month: "long" })}.` : ""}</p>`;
     el.querySelector(".pp-vers")?.addEventListener("click", e => { const b = e.target.closest("[data-v]"); if (b) { v = b.dataset.v; draw(); } });
     el.querySelector(".pp-conds")?.addEventListener("click", e => { const b = e.target.closest("[data-k]"); if (!b || !owned) return; setCond(c.id, b.dataset.k); cond = b.dataset.k; onChange?.(); draw(); });
   };
