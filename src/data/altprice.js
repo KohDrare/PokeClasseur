@@ -73,8 +73,9 @@ export function pickPrice(cm, alt, tp) {
   if (Math.max(cm, alt) < 2) return null;   // a few cents either way: not worth a doubt
   const r = cm / alt;
   if (r < 3 && r > 1 / 3) return null;
-  if (tp > 0) return Math.abs(Math.log(alt / tp)) < Math.abs(Math.log(cm / tp)) ? alt : null;
-  return alt;
+  // only with a third opinion: TCGplayer must side with the second source
+  if (tp > 0) return Math.abs(Math.log(alt / tp)) < Math.abs(Math.log(cm / tp)) && alt / tp < 3 && tp / alt < 3 ? alt : null;
+  return null;
 }
 
 /** corrects the prices of a loaded extension in place; returns true when something changed */

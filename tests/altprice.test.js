@@ -8,7 +8,7 @@ describe("second price source", () => {
   });
   it("keeps TCGdex when both sources agree, switches when they are far apart", () => {
     expect(pickPrice(10, 12, 0)).toBe(null);
-    expect(pickPrice(3.59, 88, 0)).toBe(88);                 // Pikachu RC29: TCGdex on the wrong product
+    expect(pickPrice(3.59, 88, 0)).toBe(null);               // no third opinion: keep TCGdex
     expect(pickPrice(3.59, 88, 70)).toBe(88);
     expect(pickPrice(90, 4, 75)).toBe(null);                 // the second source is the wrong one: TCGplayer sides with TCGdex
     expect(pickPrice(0.1, 0.4, 0)).toBe(null);               // cents: no doubt worth having

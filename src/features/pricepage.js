@@ -20,10 +20,10 @@ export const CONDITIONS = [
 ];
 const median = a => { const v = a.filter(x => x > 0).sort((x, y) => x - y); if (!v.length) return 0; const m = v.length >> 1; return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2; };
 
-/* the Cardmarket figures of one version: normal cards use the plain fields, reverse/holo the "-holo" ones */
+/* the Cardmarket figures of one version: the card itself uses the plain fields, its reverse the "-holo" ones */
 function figures(cm, v) {
   if (!cm) return null;
-  const h = v === "reverse" || (v === "holo" && cm["trend-holo"]) ? "-holo" : "";
+  const h = v === "reverse" ? "-holo" : "";   // Cardmarket's "-holo" figures are the foil (reverse) copy, not a holo rare
   const f = { trend: cm["trend" + h], avg1: cm["avg1" + h], avg7: cm["avg7" + h], avg30: cm["avg30" + h], low: cm["low" + h], avg: cm["avg" + h] };
   if (h && !f.trend && !f.avg7 && !f.avg30) return figures(cm, "normal");   // no foil prices: fall back
   // fair price: middle of the trend and the 7- and 30-day averages (one strange sale cannot move it much)

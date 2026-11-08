@@ -6,7 +6,7 @@
 import { DEX_NAMES } from "./dex-names.js";
 import { PCX } from "./pokecardex-map.js";
 
-export const PATCH_V = 9;
+export const PATCH_V = 10;
 export const SCANS = "https://pokecardex-scans.b-cdn.net/sets/";
 
 /* ---------- sets merged into another one ---------- */

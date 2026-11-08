@@ -87,14 +87,18 @@ export function patchSeries(data) {
   }) }));
 }
 
+export const fairPrice = (...xs) => { const v = xs.filter(x => x > 0).sort((a, b) => a - b); if (!v.length) return 0; const m = v.length >> 1; return Math.round((v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2) * 100) / 100; };
 /* one set + every card's details (cached in IndexedDB, refreshed after 5 days for prices) */
 export function compact(d, setId) {
   const vs = d.variants || {};
   const p = d.pricing?.cardmarket || {};
-  const bad = priceCheck(setId, d.localId, p.trend || p.avg || 0, d.pricing?.tcgplayer);
+  // same "fair price" as the price page: middle of the trend and the 7- and 30-day averages.
+  // Cardmarket's "-holo" figures are the foil copy (reverse); a holo rare's own price is in the plain ones.
+  const plain = fairPrice(p.trend, p.avg7, p.avg30) || p.avg || 0, foil = fairPrice(p["trend-holo"], p["avg7-holo"], p["avg30-holo"]) || p["avg-holo"] || 0;
+  const bad = priceCheck(setId, d.localId, plain, d.pricing?.tcgplayer);
   return {
     id: d.id, setId, n: d.localId, name: d.name, img: d.image || "", r: d.rarity || "", cat: d.category || "",
-    v: VARIANT_ORDER.filter(k => vs[k]), p: bad ? bad.p : p.trend || p.avg || 0, ph: bad ? 0 : p["trend-holo"] || p["avg-holo"] || 0,
+    v: VARIANT_ORDER.filter(k => vs[k]), p: bad ? bad.p : plain, ph: bad ? 0 : foil,
     dx: d.dexId || [], il: d.illustrator || "", hp: d.hp || "", t: (d.types || []).join(", "), st: d.stage || "", rm: d.regulationMark || "", ok: 1
   };
 }
