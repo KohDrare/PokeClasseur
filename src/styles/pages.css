@@ -398,3 +398,4 @@
 .scaninfo span.ok{background:color-mix(in srgb,var(--ok) 18%,var(--surface-2));color:var(--fg)}
 .scanver{text-align:center;font-size:12px;margin-top:18px}
 .scanpage.found .scaninfo{display:none}
+.acc-setpw{border-top:1px solid var(--line);padding-top:14px}.acc-setpw label small{display:block;font-weight:500}

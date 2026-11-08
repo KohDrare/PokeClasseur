@@ -51,7 +51,9 @@ export function openAccount() {
         : `<a class="acc-prof new" href="#/union/profile" id="acc-prof"><span><b>Crée ton profil de dresseur</b><small>Choisis ton pseudo et ton avatar pour la Union Room</small></span></a>`}
       <div class="acc-status st-${syncState.status}"><i></i><div><b>${STATUS_TEXT[syncState.status]}</b><small>${n} carte${n > 1 ? "s" : ""} dans ta collection${syncState.at ? ` · dernière synchro ${new Date(syncState.at).toLocaleTimeString("fr-BE", { hour: "2-digit", minute: "2-digit" })}` : ""}</small>${syncState.status === "error" ? `<small class="err">${esc(syncState.error)}</small>` : ""}</div></div>
       <p class="note">Ta collection et tes achats sont enregistrés dans ton compte : connecte-toi sur un autre appareil pour les retrouver.</p>
-      <div class="acts"><button class="pill" id="acc-sync">Synchroniser maintenant</button><button class="pill ghost" id="acc-out">Se déconnecter</button></div>`
+      <div class="acts"><button class="pill" id="acc-sync">Synchroniser maintenant</button><button class="pill ghost" id="acc-out">Se déconnecter</button></div>
+      <form id="acc-setpw" class="acc-form acc-setpw"><label for="acc-pw3">Mot de passe du compte <small>pour te connecter sans e-mail sur tes autres appareils</small></label><input id="acc-pw3" type="password" minlength="6" required autocomplete="new-password" placeholder="Nouveau mot de passe (6 caractères minimum)"><button class="pill ghost" ${busy ? "disabled" : ""}>${busy ? "Un instant…" : "Enregistrer le mot de passe"}</button></form>
+      ${msg ? `<p class="note err">${esc(msg)}</p>` : ""}`
     : step === "login" || step === "signup" ? `
       <h2>${step === "login" ? "Se connecter" : "Créer un compte"}</h2>
       <p class="note">${step === "login" ? "Connecte-toi avec le même compte sur ton téléphone et ton ordinateur : ta collection se met à jour partout." : "Choisis ton adresse e-mail et un mot de passe. Ta collection actuelle sera ajoutée à ton compte."}</p>
@@ -100,6 +102,8 @@ export function openAccount() {
         const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: redirect } });
         busy = false;
         if (error) msg = friendly(error.message);
+        // an account made earlier with the e-mail link: Supabase says nothing and sends no e-mail
+        else if (data.user && !data.user.identities?.length) { step = "login"; msg = "Un compte existe déjà avec cette adresse, sans mot de passe. Connecte-toi une fois avec « Recevoir plutôt un lien par e-mail », puis choisis ton mot de passe dans « Mon compte »."; }
         else if (!data.session) { step = "login"; info = `Compte créé. Clique une fois sur le lien de confirmation envoyé à <b>${esc(email)}</b>, puis connecte-toi ici avec ton mot de passe.`; }
         draw();
       }
@@ -112,17 +116,23 @@ export function openAccount() {
       const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: redirect });
       msg = error ? friendly(error.message) : ""; info = error ? "" : `E-mail envoyé à <b>${esc(email)}</b> : clique sur le lien pour choisir un nouveau mot de passe.`; draw();
     };
+    const sp = $("#acc-setpw");
+    if (sp) sp.onsubmit = async e => {
+      e.preventDefault(); const password = $("#acc-pw3").value; busy = true; msg = ""; draw();
+      const { error } = await supabase.auth.updateUser({ password });
+      busy = false; if (error) msg = friendly(error.message); else toast("Mot de passe enregistré : utilise-le pour te connecter sur tes autres appareils"); draw();
+    };
     const nf = $("#acc-new");
     if (nf) { $("#acc-pw2").focus(); nf.onsubmit = async e => {
-      e.preventDefault(); busy = true; msg = ""; draw();
-      const { error } = await supabase.auth.updateUser({ password: $("#acc-pw2").value });
+      e.preventDefault(); const password = $("#acc-pw2").value; busy = true; msg = ""; draw();
+      const { error } = await supabase.auth.updateUser({ password });
       busy = false; if (error) { msg = friendly(error.message); draw(); return; }
       recovering = false; step = "login"; toast("Mot de passe enregistré"); draw();
     }; }
     const c = $("#acc-code");
     if (c) { $("#acc-otp").focus(); c.onsubmit = async e => {
-      e.preventDefault(); busy = true; msg = ""; draw();
-      const { error } = await supabase.auth.verifyOtp({ email, token: $("#acc-otp").value.trim(), type: "email" });
+      e.preventDefault(); const token = $("#acc-otp").value.trim(); busy = true; msg = ""; draw();
+      const { error } = await supabase.auth.verifyOtp({ email, token, type: "email" });
       busy = false; if (error) { msg = "Code incorrect ou expiré."; draw(); }
     }; }
     const back = $("#acc-back"); if (back) back.onclick = () => { step = "login"; msg = ""; draw(); };
