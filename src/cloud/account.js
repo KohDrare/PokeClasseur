@@ -9,7 +9,7 @@ import { S } from "../state/shared.js";
 
 let session = null;
 let supabase, startSync, stopSync, syncState = { status: "off" }, onSyncState = () => () => {}, queuePush;   // filled once the cloud code is loaded
-let openModal = null;   // redraw function of the account window while it is open
+let openModal = null, closeModal = null;   // redraw function of the account window while it is open
 const btn = $("#btn-account");
 
 const friendly = m => /fetch|network/i.test(m || "") ? "Impossible de joindre le serveur. Vérifie ta connexion et réessaie."
@@ -24,6 +24,7 @@ const STATUS_TEXT = { off: "Non connecté", syncing: "Synchronisation…", ok: "
 
 const BTN_ICON = btn ? btn.innerHTML : "";
 function paintButton() {
+  dispatchEvent(new CustomEvent("account:status"));
   if (!btn) return;
   const p = cloud.profile;
   btn.dataset.state = session ? syncState.status : "off";
@@ -33,10 +34,20 @@ function paintButton() {
 }
 addEventListener("cloud:changed", () => { paintButton(); openModal?.(); });
 
-export function openAccount() {
+/* what the profile page needs, without knowing about Supabase */
+export const acct = {
+  get session() { return session; },
+  get status() { return syncState; },
+  statusText: () => STATUS_TEXT[syncState.status] || "",
+  syncNow: () => session && startSync(session.user.id),
+  async signOut() { await supabase.auth.signOut(); toast("Déconnecté. Ta collection reste sur cet appareil."); },
+  async setPassword(password) { const { error } = await supabase.auth.updateUser({ password }); if (error) throw new Error(friendly(error.message)); }
+};
+export function openAccount(mode) {
   const root = $("#modal-root");
-  let step = recovering ? "newpass" : "login", email = "", busy = false, msg = "", info = "";
-  const close = () => { root.innerHTML = ""; document.body.style.overflow = ""; document.removeEventListener("keydown", key); off(); openModal = null; };
+  let step = recovering ? "newpass" : mode || "login", email = "", busy = false, msg = "", info = "";
+  const close = () => { root.innerHTML = ""; document.body.style.overflow = ""; document.removeEventListener("keydown", key); off(); openModal = closeModal = null; };
+  closeModal = close;
   const key = e => { if (e.key === "Escape") close(); };
   const off = onSyncState(() => session && draw());
   document.addEventListener("keydown", key); document.body.style.overflow = "hidden";
@@ -47,8 +58,8 @@ export function openAccount() {
       <h2>Mon compte</h2>
       <p class="note">${esc(session.user.email)}</p>
       ${cloud.profile?.handle
-        ? `<a class="acc-prof" href="#/union/profile" id="acc-prof"><img src="${sprite(cloud.profile.avatar || 25)}" alt=""><span><b>${esc(cloud.profile.name || cloud.profile.handle)}</b><small>@${esc(cloud.profile.handle)} · voir mon profil</small></span></a>`
-        : `<a class="acc-prof new" href="#/union/profile" id="acc-prof"><span><b>Crée ton profil de dresseur</b><small>Choisis ton pseudo et ton avatar pour la Union Room</small></span></a>`}
+        ? `<a class="acc-prof" href="#/profil" id="acc-prof"><img src="${sprite(cloud.profile.avatar || 25)}" alt=""><span><b>${esc(cloud.profile.name || cloud.profile.handle)}</b><small>@${esc(cloud.profile.handle)} · voir mon profil</small></span></a>`
+        : `<a class="acc-prof new" href="#/profil" id="acc-prof"><span><b>Crée ton profil de dresseur</b><small>Choisis ton pseudo et ton avatar</small></span></a>`}
       <div class="acc-status st-${syncState.status}"><i></i><div><b>${STATUS_TEXT[syncState.status]}</b><small>${n} carte${n > 1 ? "s" : ""} dans ta collection${syncState.at ? ` · dernière synchro ${new Date(syncState.at).toLocaleTimeString("fr-BE", { hour: "2-digit", minute: "2-digit" })}` : ""}</small>${syncState.status === "error" ? `<small class="err">${esc(syncState.error)}</small>` : ""}</div></div>
       <p class="note">Ta collection et tes achats sont enregistrés dans ton compte : connecte-toi sur un autre appareil pour les retrouver.</p>
       <div class="acts"><button class="pill" id="acc-sync">Synchroniser maintenant</button><button class="pill ghost" id="acc-out">Se déconnecter</button></div>
@@ -146,7 +157,7 @@ export function openAccount() {
 
 if (cloudEnabled && btn) {
   btn.hidden = false;
-  btn.onclick = () => supabase ? openAccount() : toast("Connexion au serveur…");
+  btn.onclick = () => { location.hash = "#/profil"; };
   // load Supabase after the first screen is drawn, so the app opens just as fast as before
   Promise.all([import("./client.js"), import("./sync.js")]).then(([c, sy]) => {
   ({ supabase } = c);
@@ -164,7 +175,7 @@ if (cloudEnabled && btn) {
       // outside the auth callback: Supabase calls made inside it can wait on each other
       setTimeout(() => loadMyProfile().catch(e => { console.warn("[cloud] profil", e); setCloud({ profile: { id: s.user.id, handle: null, error: profileError(e) } }); }), 0);
       startSync(s.user.id);
-      if (event === "SIGNED_IN") { toast("Connecté"); openModal?.(); }
+      if (event === "SIGNED_IN") { toast("Connecté"); if (recovering) openModal?.(); else closeModal?.(); }
     }
     if (!s && was) stopSync();
     // remove ?code=… left by the e-mail link

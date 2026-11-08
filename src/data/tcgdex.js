@@ -1,5 +1,6 @@
 import { PCX } from "./pokecardex-map.js";
 import { priceCheck, priceHint } from "./price-hints.js";
+import { applyAltPrices } from "./altprice.js";
 import { CARD_FIX, EXTRA, HIDDEN_SETS, LINKED, MERGED, PATCH_V, UPCOMING, dexFromName, extraCount, isScan, scanBase, upcomingVariants } from "./set-patches.js";
 import { VARIANT_ORDER } from "../features/variants.js";
 import { API, esc } from "../lib/core.js";
@@ -106,7 +107,7 @@ export async function loadSet(setId, onProgress) {
   const key = setKey(setId);
   const cached = await idb.get(key);
   const fresh = cached && Date.now() - cached.at < 5 * 864e5 && cached.cards.every(c => c.ok);
-  if (fresh) return cached;
+  if (fresh) { altCheck(cached, key); return cached; }
   const s = await getJSON(`${API}/sets/${encodeURIComponent(setId)}`).catch(e => { if (UPCOMING[setId]) return null; throw e; });
   if (!s && UPCOMING[setId]) return upcomingSet(setId, key);
   if (!s) throw new Error("Extension introuvable");
@@ -163,7 +164,13 @@ export async function loadSet(setId, onProgress) {
     done++; if (done % 6 === 0 || done === cards.length) onProgress?.(res, done / cards.length);
   });
   await idb.set(key, res);
+  altCheck(res, key);
   return res;
+}
+/* prices checked against a second source, in the background (3 days between checks) */
+function altCheck(res, key) {
+  if (res.info.upcoming || (res.info.altAt && Date.now() - res.info.altAt < 3 * 864e5)) return;
+  applyAltPrices(res).then(changed => { idb.set(key, res); if (changed) dispatchEvent(new CustomEvent("prices:changed", { detail: res.info.id })); }).catch(() => {});
 }
 /* an announced set built from the cards revealed so far (checked again online every day) */
 async function upcomingSet(setId, key) {

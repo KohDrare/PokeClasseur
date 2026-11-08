@@ -132,7 +132,7 @@ function drawHero(items) {
         <span><b>${items.length}</b> carte${items.length > 1 ? "s" : ""}</span>
         <span><b>${copies}</b> exemplaire${copies > 1 ? "s" : ""}</span>
         <span><b>${dupes}</b> doublon${dupes > 1 ? "s" : ""}</span>
-        <a href="#/union"><b>${UN.wish.length}</b> souhait${UN.wish.length > 1 ? "s" : ""}</a>
+        <span><b>${UN.wish.length}</b> souhait${UN.wish.length > 1 ? "s" : ""}</span>
       </div>
     </div>`;
   drawChart(h.days, value);

@@ -31,7 +31,7 @@ addEventListener("collection:replaced", route);   // cloud sync merged a new col
 addEventListener("collection:remote", () => {
   const h = location.hash;
   if ($("#modal-root").children.length || $("#bview") || $("#pricepage") || $("#cardviewer") || $("#msheet.open")) return;   // the next screen will be up to date
-  if (h.startsWith("#/scan") || h.startsWith("#/union")) return;
+  if (h.startsWith("#/scan") || h.startsWith("#/union") || h.startsWith("#/profil")) return;
   if ($("#cards") && S.CUR?.data) { drawCards(); refreshProgress(); return; }
   const y = scrollY; route(); requestAnimationFrame(() => scrollTo(0, y));
 });
