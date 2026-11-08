@@ -45,7 +45,13 @@ export async function applyCmPrices(res) {
     at = data.at || at;
     for (const c of cards) {
       const num = c.src || c.id.slice(c.id.lastIndexOf("-") + 1);
-      const f = cmFigures(data.c[num]); if (!f) continue;
+      const f = cmFigures(data.c[num]);
+      if (!f) {
+        // no Cardmarket line any more: back to TCGdex's price (or reload the card if it was lost)
+        if (c.cm) { if (c.pT0 != null) { c.p = c.pT0; c.ph = c.phT0; } else c.ok = 0; delete c.cm; changed = true; }
+        continue;
+      }
+      if (c.pT0 == null && !c.cm) { c.pT0 = c.p; c.phT0 = c.ph; }
       const p = f.normal.fair, ph = f.reverse.fair;
       if (p !== c.p || ph !== c.ph) changed = true;
       c.p = p; c.ph = ph; c.cm = f.id;
