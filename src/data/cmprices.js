@@ -7,13 +7,14 @@ import { idb } from "../lib/storage.js";
 
 const BASE = import.meta.env.BASE_URL || "/";
 const mem = new Map();
+export const CM_V = 2;   // raise to make every device take the price files again at once
 const median = xs => { const v = xs.filter(x => x > 0).sort((a, b) => a - b); if (!v.length) return 0; const m = v.length >> 1; return Math.round((v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2) * 100) / 100; };
 
 /** { at, c: { number → line } } of an extension, or null when there is none (kept 12 h on this device) */
 export function cmSet(setId) {
   if (mem.has(setId)) return mem.get(setId);
   const p = (async () => {
-    const key = `cm1:${setId}`, cached = await idb.get(key).catch(() => null);
+    const key = `cm${CM_V}:${setId}`, cached = await idb.get(key).catch(() => null);
     if (cached && Date.now() - cached.got < 12 * 36e5) return cached.data;
     try {
       const r = await fetch(`${BASE}prices/${encodeURIComponent(setId)}.json`);
@@ -51,6 +52,6 @@ export async function applyCmPrices(res) {
     }
   }
   res.info.cmAt = at || res.info.cmAt;
-  res.info.cmGot = Date.now();
+  res.info.cmGot = Date.now(); res.info.cmV = CM_V;
   return changed;
 }

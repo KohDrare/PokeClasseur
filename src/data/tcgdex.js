@@ -1,6 +1,6 @@
 import { PCX } from "./pokecardex-map.js";
 import { priceCheck, priceHint } from "./price-hints.js";
-import { applyCmPrices } from "./cmprices.js";
+import { CM_V, applyCmPrices } from "./cmprices.js";
 import { CARD_FIX, EXTRA, HIDDEN_SETS, LINKED, MERGED, PATCH_V, UPCOMING, dexFromName, extraCount, isScan, scanBase, upcomingVariants } from "./set-patches.js";
 import { VARIANT_ORDER } from "../features/variants.js";
 import { API, esc } from "../lib/core.js";
@@ -111,7 +111,7 @@ export async function loadSet(setId, onProgress) {
   const key = setKey(setId);
   const cached = await idb.get(key);
   const fresh = cached && Date.now() - cached.at < 5 * 864e5 && cached.cards.every(c => c.ok);
-  if (fresh) { await cmCheck(cached, key, !cached.info.cmGot, false); return cached; }   // first time: wait for the right prices
+  if (fresh) { await cmCheck(cached, key, cached.info.cmV !== CM_V, false); return cached; }   // first time: wait for the right prices
   const s = await getJSON(`${API}/sets/${encodeURIComponent(setId)}`).catch(e => { if (UPCOMING[setId]) return null; throw e; });
   if (!s && UPCOMING[setId]) return upcomingSet(setId, key);
   if (!s) throw new Error("Extension introuvable");
@@ -173,7 +173,7 @@ export async function loadSet(setId, onProgress) {
 /* Cardmarket's own prices on every card (twice a day at most); first load waits for them, later ones not */
 async function cmCheck(res, key, wait, force = wait) {
   const go = async () => {
-    if (res.info.upcoming || (!force && res.info.cmGot && Date.now() - res.info.cmGot < 12 * 36e5)) return;
+    if (res.info.upcoming || (!force && res.info.cmV === CM_V && res.info.cmGot && Date.now() - res.info.cmGot < 12 * 36e5)) return;
     const changed = await applyCmPrices(res).catch(() => false);
     await idb.set(key, res);
     if (changed && !wait) dispatchEvent(new CustomEvent("prices:changed", { detail: res.info.id }));
