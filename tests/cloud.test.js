@@ -59,7 +59,9 @@ function table(name) {
   };
   return api;
 }
-vi.mock("../src/cloud/client.js", () => ({ cloudEnabled: true, supabase: { from: table } }));
+const pings = [];
+const channel = { on() { return this; }, subscribe() { return this; }, send: async m => { pings.push(m); return "ok"; } };
+vi.mock("../src/cloud/client.js", () => ({ cloudEnabled: true, supabase: { from: table, channel: () => channel, removeChannel() {} } }));
 
 describe("cloud sync", () => {
   beforeEach(() => { db.collection_items = [{ card_id: "sv08-010", variant: "normal", set_id: "sv08", qty: 1, dex_ids: [] }]; db.purchases = []; });
@@ -83,5 +85,34 @@ describe("cloud sync", () => {
     await new Promise(r => setTimeout(r, 0));
     expect(db.collection_items.find(r => r.card_id === "me05-116")).toBeUndefined();
     expect(db.collection_items).toHaveLength(3);
+    expect(pings.length).toBeGreaterThan(0);   // the other devices are told
+
+    // another device removes a card and adds one: this device follows after a pull
+    db.collection_items = db.collection_items.filter(r => r.card_id !== "sv08-010");
+    db.collection_items.push({ card_id: "me06-136", variant: "holo", set_id: "me06", qty: 1, dex_ids: [] });
+    vi.useFakeTimers();
+    sync.schedulePull(0);
+    await vi.advanceTimersByTimeAsync(50);
+    vi.useRealTimers();
+    await new Promise(r => setTimeout(r, 0));
+    expect(Object.keys(S.COL.cards).sort()).toEqual(["me05-001", "me06-136"]);
+  });
+});
+
+import { mergeItems } from "../src/cloud/mapping.js";
+describe("live sync between devices", () => {
+  const row = (card_id, qty, extra = {}) => ({ card_id, variant: "normal", set_id: "me06", qty, dex_ids: [], ...extra });
+  it("follows the database for cards untouched here, keeps local changes", () => {
+    const base = [row("a", 1), row("b", 1), row("c", 1)];
+    const local = [row("a", 1), row("b", 3), row("c", 1), row("d", 1)];       // b changed, d added here
+    const remote = [row("a", 2), row("b", 1), row("e", 1)];                     // a changed, c removed, e added elsewhere
+    const m = Object.fromEntries(mergeItems(base, local, remote).map(r => [r.card_id, r.qty]));
+    expect(m).toEqual({ a: 2, b: 3, d: 1, e: 1 });
+  });
+  it("syncs condition, language and favourite once the database has the columns", () => {
+    const col = { cards: { "me06-136": { s: "me06", v: { holo: 1 }, c: "EX", l: "EN", f: 1, t: 5 } } };
+    const rows = colToItems(col, true);
+    expect(rows[0]).toMatchObject({ cond: "EX", lang: "EN", fav: true, added_at: 5 });
+    expect(rowsToCol(rows, []).cards["me06-136"]).toMatchObject({ c: "EX", l: "EN", f: 1, t: 5 });
   });
 });

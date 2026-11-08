@@ -19,7 +19,7 @@ import "./mobile.js";             // phone layout: tab bar, menu, swipes
 
 import { $ } from "./lib/core.js";
 import { LS } from "./lib/storage.js";
-import { drawCards } from "./pages/set.js";
+import { drawCards, refreshProgress } from "./pages/set.js";
 import { route } from "./router.js";
 import { COL_KEY } from "./state/collection.js";
 import { PREF } from "./state/prefs.js";
@@ -27,6 +27,14 @@ import { S } from "./state/shared.js";
 
 addEventListener("hashchange", route);
 addEventListener("collection:replaced", route);   // cloud sync merged a new collection in
+// another device of the account changed the collection: redraw what is on screen without losing the place
+addEventListener("collection:remote", () => {
+  const h = location.hash;
+  if ($("#modal-root").children.length || $("#bview") || $("#pricepage") || $("#cardviewer") || $("#msheet.open")) return;   // the next screen will be up to date
+  if (h.startsWith("#/scan") || h.startsWith("#/union")) return;
+  if ($("#cards") && S.CUR?.data) { drawCards(); refreshProgress(); return; }
+  const y = scrollY; route(); requestAnimationFrame(() => scrollTo(0, y));
+});
 // another tab changed the collection: reload it
 addEventListener("storage", e => { if (e.key === COL_KEY) S.COL = LS.get(COL_KEY, S.COL); });
 // the binder shows 1 or 2 pages depending on width
