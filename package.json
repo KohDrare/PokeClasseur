@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Collection de cartes Pokémon : séries, classeur, Pokédex, stats et Union Room.",
+  "description": "Collection de cartes Pok\u00e9mon : s\u00e9ries, classeur, Pok\u00e9dex, stats et Union Room.",
   "scripts": {
     "predev": "node scripts/copy-ocr.mjs",
     "dev": "vite",
@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "check": "tsc --noEmit",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "prices": "node scripts/build-prices.mjs public/prices"
   },
   "devDependencies": {
     "@eslint/js": "^9.12.0",

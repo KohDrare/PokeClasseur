@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    - cron: "17 4 * * *"   # every morning: fresh Cardmarket prices (public/prices)
 
 permissions:
   contents: read
@@ -25,6 +27,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      - name: Cardmarket prices
+        run: node scripts/build-prices.mjs public/prices
       - run: npm run build
         env:
           BASE_PATH: /${{ github.event.repository.name }}/
