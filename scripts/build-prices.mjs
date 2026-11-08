@@ -2,10 +2,10 @@
    of ITS Cardmarket page.
    Why: TCGdex sometimes links a card to the wrong Cardmarket product when several products share a
    name (Générations: Pikachu 26/83 and Pikachu RC29 are both "Pikachu [Nuzzle | Quick Attack]").
-   How: Cardmarket publishes every product (name, extension) and every price guide. For each set we
-   find its Cardmarket extension, then match cards by English name; cards sharing a name are matched
-   in order (Cardmarket adds an extension's products in card order), leaving out products added long
-   after the release (stamped reprints…). Runs before each build and every morning (GitHub Actions).
+   How: TCGdex gives each card a Cardmarket product; that link is KEPT unless it is provably wrong:
+   a product with another name, attacks that do not match while another product's do, or one product
+   given to two cards of the set. Those cards are matched again among the products of the same name:
+   attacks first, then rarity against price. Runs before each build and every morning (GitHub Actions).
    Usage: node scripts/build-prices.mjs <outDir> [products.json] [price_guide.json] */
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -50,72 +50,79 @@ const sets = await json(`${TCGDEX}/en/sets`);
 await fs.mkdir(OUT, { recursive: true });
 const report = { sets: 0, cards: 0, matched: 0, fixed: 0, examples: [] };
 
-await pool(sets, 6, async ({ id }) => {
+const line = p => { const g = price.get(p.idProduct); return g && [p.idProduct, r2(g.trend), r2(g.avg1), r2(g.avg7), r2(g.avg30), r2(g.low), r2(g["trend-holo"]), r2(g["avg1-holo"]), r2(g["avg7-holo"]), r2(g["avg30-holo"]), r2(g["low-holo"])]; };
+const movesOf = d => new Set([...(d?.attacks || []), ...(d?.abilities || [])].map(a => plain(a.name)));
+// how well a product fits a card: same attacks (+1 each), attacks that don't match at all (-1)
+const fit = (p, mine) => { const pm = moves(p.name); let n = 0; for (const m of pm) if (mine.has(m)) n++; return pm.size && mine.size && !n ? -1 : n; };
+
+await pool(sets, 4, async ({ id }) => {
   const s = await json(`${TCGDEX}/en/sets/${encodeURIComponent(id)}`).catch(() => null);
   if (!s?.cards?.length) return;
-  // the set's Cardmarket extension: where TCGdex's own product links point (majority of a sample)
-  const sample = s.cards.filter((_, i) => i % Math.max(1, Math.floor(s.cards.length / 6)) === 0).slice(0, 6);
-  const tcgdexProd = new Map(), votes = new Map();
-  for (const c of sample) {
-    const d = await json(`${TCGDEX}/en/cards/${encodeURIComponent(c.id)}`).catch(() => null);
-    const pid = d?.pricing?.cardmarket?.idProduct, p = pid && prodById.get(pid);
-    if (p) { tcgdexProd.set(c.id, pid); votes.set(p.idExpansion, (votes.get(p.idExpansion) || 0) + 1); }
-  }
+  const cards = s.cards.slice().sort((a, b) => cmp(a.localId, b.localId));
+  const det = new Map();
+  await pool(cards, 8, async c => det.set(c.id, await json(`${TCGDEX}/en/cards/${encodeURIComponent(c.id)}`).catch(() => null)));
+  const link = c => prodById.get(det.get(c.id)?.pricing?.cardmarket?.idProduct);
+  // the set's Cardmarket extension: where most of TCGdex's links point
+  const votes = new Map();
+  for (const c of cards) { const p = link(c); if (p) votes.set(p.idExpansion, (votes.get(p.idExpansion) || 0) + 1); }
   const exp = [...votes].sort((a, b) => b[1] - a[1])[0]?.[0];
   if (!exp) return;
   const all = (byExp.get(exp) || []).slice().sort((a, b) => a.idProduct - b.idProduct);
-  // products of the release (not reprints added years later)
   const dates = all.map(p => day(p.dateAdded)).filter(Number.isFinite).sort((a, b) => a - b);
   const first = dates[Math.floor(dates.length * 0.1)] ?? NaN;
   const recent = p => !Number.isFinite(first) || !Number.isFinite(day(p.dateAdded)) || day(p.dateAdded) - first < 200 * 864e5;
   const cands = new Map();
   for (const p of all) if (recent(p)) (cands.get(norm(p.name)) || cands.set(norm(p.name), []).get(norm(p.name))).push(p);
-  const cards = s.cards.slice().sort((a, b) => cmp(a.localId, b.localId));
-  const byName = new Map();
-  for (const c of cards) (byName.get(norm(c.name)) || byName.set(norm(c.name), []).get(norm(c.name))).push(c);
+  const shared = new Map();
+  for (const c of cards) { const p = link(c); if (p) shared.set(p.idProduct, (shared.get(p.idProduct) || 0) + 1); }
 
-  const out = {};
-  for (const [name, cs] of byName) {
-    const ps = cands.get(name) || [];
-    if (!ps.length || ps.length < cs.length) continue;   // can't tell which is which
-    let pick = cs.map((_, i) => ps[i]);
-    if (ps.length > 1) {
-      // several products with this name. 1) same attacks; 2) among equals, TCGdex's own link when no
-      // other card of the group shares it; 3) what is left: rarer card ↔ more expensive product
-      const det = await Promise.all(cs.map(c => json(`${TCGDEX}/en/cards/${encodeURIComponent(c.id)}`).catch(() => null)));
-      const link = det.map(d => d?.pricing?.cardmarket?.idProduct);
-      cs.forEach((c, i) => { if (link[i]) tcgdexProd.set(c.id, link[i]); });
-      const ties = det.map(d => {
-        const mine = new Set([...(d?.attacks || []), ...(d?.abilities || [])].map(a => plain(a.name)));
-        const sc = ps.map(p => { const pm = moves(p.name); let n = 0; for (const m of pm) if (mine.has(m)) n++; return pm.size && mine.size && !n ? -1 : n; });
-        const top = Math.max(...sc); return ps.filter((_, k) => sc[k] === top);
-      });
-      const used = new Set(); pick = cs.map(() => null);
-      const free = i => ties[i].filter(p => !used.has(p));
-      for (let again = true; again;) { again = false; cs.forEach((_, i) => { if (!pick[i] && free(i).length === 1) { pick[i] = free(i)[0]; used.add(pick[i]); again = true; } }); }
-      cs.forEach((_, i) => {
-        if (pick[i] || !link[i] || link.filter(x => x === link[i]).length > 1) return;
-        const p = free(i).find(x => x.idProduct === link[i]); if (p) { pick[i] = p; used.add(p); }
-      });
-      const left = cs.map((_, i) => i).filter(i => !pick[i]);
-      if (left.length) {
-        const pool2 = [...new Set(left.flatMap(free))].sort((x, y) => (price.get(x.idProduct)?.trend || 0) - (price.get(y.idProduct)?.trend || 0));
-        const byRar = left.slice().sort((x, y) => rarity(det[x]?.rarity) - rarity(det[y]?.rarity) || x - y);
-        // as many products as cards: cheapest to the commonest; extra products (reprints…) are skipped from the middle
-        const chosen = pool2.length <= byRar.length ? pool2 : [...pool2.slice(0, Math.ceil(byRar.length / 2)), ...pool2.slice(pool2.length - Math.floor(byRar.length / 2))];
-        byRar.forEach((i, k) => { pick[i] = chosen[k] || null; });
-      }
-    }
-    cs.forEach((c, i) => {
-      const p = pick[i], g = p && price.get(p.idProduct); if (!g) return;
-      out[c.localId] = [p.idProduct, r2(g.trend), r2(g.avg1), r2(g.avg7), r2(g.avg30), r2(g.low), r2(g["trend-holo"]), r2(g["avg1-holo"]), r2(g["avg7-holo"]), r2(g["avg30-holo"]), r2(g["low-holo"])];
-      const t = tcgdexProd.get(c.id);
-      if (t && t !== p.idProduct) { report.fixed++; if (report.examples.length < 12) report.examples.push(`${c.id} ${c.name}: TCGdex ${t} → ${p.idProduct}`); }
-    });
+  // TCGdex's link is kept unless it is provably wrong: another card's name, attacks that don't match
+  // while another product's do, or the same product given to two cards of the set (Pikachu 26/83 and RC29)
+  const out = {}, wrong = [];
+  for (const c of cards) {
+    const p = link(c), ps = cands.get(norm(c.name)) || [], mine = movesOf(det.get(c.id));
+    const ok = p && p.idExpansion === exp && norm(p.name) === norm(c.name) && shared.get(p.idProduct) === 1
+      && !(fit(p, mine) < 0 && ps.some(q => fit(q, mine) > 0));
+    if (ok) out[c.localId] = line(p);
+    else if (ps.length) wrong.push(c);
   }
+  // the wrong ones: free products of the same name, best attacks first, then rarer card ↔ dearer product
+  const taken = new Set(Object.values(out).filter(Boolean).map(x => x[0]));
+  const groups = new Map();
+  for (const c of wrong) (groups.get(norm(c.name)) || groups.set(norm(c.name), []).get(norm(c.name))).push(c);
+  for (const [name, cs] of groups) {
+    let free = (cands.get(name) || []).filter(p => !taken.has(p.idProduct));
+    const left = [];
+    for (const c of cs) {
+      const mine = movesOf(det.get(c.id)), sc = free.map(p => fit(p, mine)), top = Math.max(-1, ...sc);
+      const best = free.filter((_, k) => sc[k] === top);
+      if (best.length === 1 && top > 0) { out[c.localId] = line(best[0]); taken.add(best[0].idProduct); free = free.filter(p => p !== best[0]); }
+      else left.push(c);
+    }
+    if (!left.length || !free.length) continue;
+    // keep the cards' own TCGdex products in the race (one of them is right)
+    const pool2 = [...new Set([...left.map(link).filter(p => p && norm(p.name) === name && !taken.has(p.idProduct)), ...free])];
+    const rs = left.map(c => rarity(det.get(c.id)?.rarity));
+    let byRar, chosen;
+    if (new Set(rs).size === 1) {
+      // same rarity everywhere (old sets: holo and plain are both "Rare"): Cardmarket's order = card order
+      byRar = left; chosen = pool2.sort((x, y) => x.idProduct - y.idProduct).slice(0, left.length);
+    } else {
+      // rarer card ↔ dearer product; extra products (reprints…) skipped from the middle
+      byRar = left.map((c, i) => [c, rs[i]]).sort((x, y) => x[1] - y[1]).map(x => x[0]);
+      pool2.sort((x, y) => (price.get(x.idProduct)?.trend || 0) - (price.get(y.idProduct)?.trend || 0));
+      chosen = pool2.length <= byRar.length ? pool2 : [...pool2.slice(0, Math.ceil(byRar.length / 2)), ...pool2.slice(pool2.length - Math.floor(byRar.length / 2))];
+    }
+    byRar.forEach((c, k) => { if (chosen[k]) out[c.localId] = line(chosen[k]); });
+  }
+  for (const c of cards) {
+    const t = link(c)?.idProduct, o = out[c.localId]?.[0];
+    if (t && o && t !== o) { report.fixed++; if (report.examples.length < 15) report.examples.push(`${c.id} ${c.name}: TCGdex ${t} (${price.get(t)?.trend}) → ${o} (${price.get(o)?.trend})`); }
+  }
+  for (const k of Object.keys(out)) if (!out[k]) delete out[k];
   report.sets++; report.cards += cards.length; report.matched += Object.keys(out).length;
   await fs.writeFile(path.join(OUT, `${id}.json`), JSON.stringify({ at: guide.createdAt, exp, c: out }));
 });
 await fs.writeFile(path.join(OUT, "index.json"), JSON.stringify({ at: guide.createdAt, sets: report.sets }));
-console.log(`prix Cardmarket : ${report.matched}/${report.cards} cartes dans ${report.sets} extensions ; ${report.fixed} liens TCGdex corrigés (sur l'échantillon)`);
+console.log(`prix Cardmarket : ${report.matched}/${report.cards} cartes dans ${report.sets} extensions ; ${report.fixed} liens TCGdex corrigés`);
 report.examples.forEach(x => console.log("  " + x));
