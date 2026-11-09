@@ -157,7 +157,7 @@ export function drawSetBody() {
   $("#rb-have").onclick = () => setOwn(PREF.own === "have" ? "all" : "have");
   body.querySelectorAll(".rbtn[data-r]").forEach(b => b.onclick = () => { const r = b.dataset.r; S.CUR.rar.has(r) ? S.CUR.rar.delete(r) : S.CUR.rar.add(r); b.classList.toggle("on"); S.CUR.page = 0; drawCards(); });
   $("#q-cards").oninput = e => { S.CUR.q = e.target.value; S.CUR.page = 0; drawCards(); };
-  $("#tg-gray").onclick = e => { PREF.gray = PREF.gray === false; savePref(); applyGray(); e.currentTarget.classList.toggle("on", PREF.gray); };
+  $("#tg-gray").onclick = e => { PREF.gray = PREF.gray === false; applyGray(); e.currentTarget.classList.toggle("on", PREF.gray); };   // not saved: grey again next time
   $("#tg-versions").onclick = () => {
     PREF.versions = !PREF.versions; savePref(); S.CUR.page = 0;
     if (!PREF.versions) S.CUR.rar.delete("promo|");

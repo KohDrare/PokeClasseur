@@ -8,7 +8,7 @@ import { askMotion, attachTilt } from "../features/tilt.js";
 import { renderCollection } from "../pages/collection.js";
 import { renderSetStats } from "../pages/set-stats.js";
 import { drawCards, refreshCounts } from "../pages/set.js";
-import { LANGS, condFactor, isFav, langOf, ownedAny, qtyOf, setFav, setLang, setQty } from "../state/collection.js";
+import { LANGS, condFactor, condOf, isFav, langOf, ownedAny, qtyOf, setFav, setLang, setQty } from "../state/collection.js";
 import { S } from "../state/shared.js";
 import { unToggleWish } from "../union/feed.js";
 import { openMon, sprite } from "../pages/pokedex.js";
@@ -39,6 +39,7 @@ export function openCard(card, seq, startV, opts = {}) {
       <div class="info">
         <h2>${esc(c.name)}</h2>
         <div class="line"><span>${esc(numLabel(c, info))}</span>·<span>${esc(c.linked ? info.promoSet || "Promo" : info.name || c._setName || "")}</span></div>
+        <button class="mprice" id="m-price"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M17.5 6.5A7 7 0 1 0 17.5 17.5"/><path d="M4 10.5h9M4 13.5h9"/></svg><span class="mp-l">Prix Cardmarket<small id="m-plbl">${esc(priceLbl(c, pv))}</small></span><b id="m-pval">${priceTxt(c, pv)}</b><span class="mp-go">Détails ›</span></button>
         <dl class="facts">
           <dt>Rareté</dt><dd>${c.ok ? `${symHTML(c.r)} ${esc(isSpecial(c) ? rareName(c) : r.label)}` : "…"}</dd>
           ${c.prod ? `<dt>Obtenue avec</dt><dd>${esc(c.prod)}</dd>` : ""}
@@ -55,18 +56,17 @@ export function openCard(card, seq, startV, opts = {}) {
         <div class="navrow">
           <button class="pill ghost" id="m-prev" ${idx === 0 ? "disabled" : ""}>${ICON.prev}</button>
           <button class="pill ghost" id="m-next" ${idx >= seq.length - 1 ? "disabled" : ""}>${ICON.next}</button>
-          <button class="pill ghost" id="m-price"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M17.5 6.5A7 7 0 1 0 17.5 17.5"/><path d="M4 10.5h9M4 13.5h9"/></svg> Prix</button>
           ${c.dx?.length ? `<button class="pill ghost" id="m-dex">Pokédex</button>` : ""}
           <button class="pill ghost" id="m-wish">${UN.wish.some(w => w.id === c.id) ? "Dans ma liste" : "Je la cherche"}</button>
           ${ownedAny(c.id) ? `<button class="pill ghost ${isFav(c.id) ? "on" : ""}" id="m-fav">${isFav(c.id) ? "★ Favorite" : "☆ Favori"}</button>` : ""}
         </div>
-        <p class="note" style="margin-top:14px">Prix : tendance Cardmarket (TCGdex). Utilise ← et → pour passer d'une carte à l'autre.</p>
+        <p class="note" style="margin-top:14px">Utilise ← et → pour passer d'une carte à l'autre.</p>
       </div></div></div>`;
     $("#m-close").onclick = close;
     $("#mdl").onclick = e => { if (e.target.id === "mdl") close(); };
     const cref = () => ({ id: c.id, name: c.name, img: c.img, set: info.name || "", n: c.n, r: c.r, p: priceOf(c, pv) || c.p || 0, dx: c.dx || [] });
     $("#m-wish").onclick = () => { unToggleWish(cref()); $("#m-wish").textContent = UN.wish.some(w => w.id === c.id) ? "Dans ma liste" : "Je la cherche"; };
-    $("#m-price").onclick = () => openPricePage(c, info, pv, () => { changed = true; });
+    $("#m-price").onclick = () => openPricePage(c, info, pv, () => { changed = true; const pl = $("#m-plbl"), pvv = $("#m-pval"); if (pl) pl.textContent = priceLbl(c, pv); if (pvv) pvv.textContent = priceTxt(c, pv); });
     $("#m-prev").onclick = () => { if (idx > 0) { idx--; draw(); } };
     $("#m-next").onclick = () => { if (idx < seq.length - 1) { idx++; draw(); } };
     const dxb = $("#m-dex"); if (dxb) dxb.onclick = () => goDex(c.dx[0]);
@@ -75,6 +75,7 @@ export function openCard(card, seq, startV, opts = {}) {
       const h2 = $("#holo"); h2.querySelector(".fx")?.remove(); h2.querySelector(".ftag")?.remove();
       h2.querySelector(".glare").insertAdjacentHTML("beforebegin", fxHTML(foilOf(c, pv)) + badgeHTML(c, pv));
       document.querySelectorAll("#vers .ver").forEach(x => x.classList.toggle("on", x.dataset.v === pv));
+      const pl = $("#m-plbl"), pvv = $("#m-pval"); if (pl) pl.textContent = priceLbl(c, pv); if (pvv) pvv.textContent = priceTxt(c, pv);
     };
     $("#vers").onclick = e => {
       const b = e.target.closest("[data-d]");
@@ -223,6 +224,9 @@ export function openCard(card, seq, startV, opts = {}) {
   draw();
   return { close };
 }
+/* the price shown on the computer card sheet: the version on screen, in the condition of my copy */
+const priceTxt = (c, v) => { const p = priceOf(c, v); return p ? eur(p * (ownedAny(c.id) ? condFactor(c.id) : 1)) : "–"; };
+const priceLbl = (c, v) => `${variantLabel(c, v)}${ownedAny(c.id) && condOf(c.id) !== "NM" ? " · état " + condOf(c.id) : ""} · tendance du jour`;
 export function verRow(c, v, on) {
   const q = qtyOf(c.id, v), p = priceOf(c, v);
   return `<div class="ver ${q ? "have" : ""} ${on ? "on" : ""}" data-v="${v}"><div><div class="vn">${esc(variantLabel(c, v))}</div><div class="vp">${p ? eur(p) + " pièce" : "prix inconnu"}</div></div>

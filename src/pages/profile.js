@@ -221,12 +221,10 @@ function drawSettings() {
   el.innerHTML = `<h2>Réglages</h2>
     <div class="pf-rows">
       ${sw("pf-dark", PREF.theme === "dark", "Mode sombre", "Fond foncé, plus doux le soir")}
-      ${sw("pf-gray", PREF.gray !== false, "Griser les cartes manquantes", "Sinon toutes les cartes sont en couleur ; le ✓ montre celles que tu as")}
       ${"DeviceOrientationEvent" in window && matchMedia("(pointer:coarse)").matches ? `<button class="pf-row" id="pf-motion"><b>Effet 3D avec le mouvement</b><small>Autoriser l'inclinaison du téléphone pour faire bouger les cartes</small></button>` : ""}
       ${mAble ? `<button class="pf-row" id="pf-ui"><b>${m ? "Version ordinateur" : "Version téléphone"}</b><small>${m ? "Afficher le site comme sur un ordinateur" : "Revenir à l'affichage pour téléphone"}</small></button>` : ""}
     </div>`;
   $("#pf-dark").onclick = e => { PREF.theme = PREF.theme === "dark" ? "light" : "dark"; savePref(); applyTheme(); flip(e.currentTarget, PREF.theme === "dark"); };
-  $("#pf-gray").onclick = e => { PREF.gray = PREF.gray === false; savePref(); applyGray(); flip(e.currentTarget, PREF.gray); };
   const mo = $("#pf-motion"); if (mo) mo.onclick = () => { askMotion(); toast("Incline ton téléphone sur une carte en grand"); };
   const ui = $("#pf-ui"); if (ui) ui.onclick = () => { try { localStorage.setItem("pc-ui", m ? "d" : "m"); } catch { /* private mode */ } location.reload(); };
 }

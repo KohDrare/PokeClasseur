@@ -467,7 +467,9 @@ html.m .pf-card{padding:14px}
 .shfilter button,.cown button{display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 10px 0 5px;border-radius:16px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font:inherit;font-size:13px;font-weight:700;cursor:pointer}
 .shfilter button[data-u=""]{padding-left:10px}
 .shfilter button.on,.cown button.on{background:var(--navy);border-color:var(--navy);color:var(--navy-ink)}
-.tileowners{position:absolute;left:8px;top:8px;display:flex;padding-left:5px;z-index:2;pointer-events:none}
+.tileowners{position:absolute;left:6px;top:6px;display:flex;z-index:2;pointer-events:none}
+.tileowners .shav.xs{width:32px;height:32px;border:2px solid #fff;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.3);margin-left:0;padding:2px}
+.tileowners .shav.xs+.shav.xs{margin-left:-12px}
 .cowners{margin-top:12px;display:flex;flex-direction:column;gap:8px}
 .cown-h{font-size:13px;font-weight:800;color:var(--muted)}
 .cown-h small{font-weight:500;margin-left:4px}
@@ -493,3 +495,12 @@ html.m .pf-card{padding:14px}
 .vc-mode button{font-size:12.5px}
 .tab.dot::after,.navbtn.dot::after{content:"";position:absolute;top:6px;right:calc(50% - 18px);width:9px;height:9px;border-radius:50%;background:#e5484d;border:2px solid var(--surface)}
 .navbtn{position:relative}
+
+/* computer card sheet: the price, as clear as on the phone */
+.mprice{display:flex;align-items:center;gap:14px;width:100%;margin:14px 0 4px;padding:14px 18px;border:0;border-radius:14px;background:var(--navy);color:var(--navy-ink);font:inherit;cursor:pointer;text-align:left;box-shadow:var(--shadow)}
+.mprice:hover{filter:brightness(1.08)}
+.mprice svg{width:26px;height:26px;flex:none;opacity:.9}
+.mprice .mp-l{display:flex;flex-direction:column;gap:2px;font-size:13px;font-weight:700;opacity:.85}
+.mprice .mp-l small{font-weight:500;font-size:12px}
+.mprice b{margin-left:auto;font-size:26px;font-weight:800;letter-spacing:-.01em;white-space:nowrap}
+.mprice .mp-go{font-size:13px;font-weight:700;opacity:.85;white-space:nowrap}

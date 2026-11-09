@@ -1,3 +1,4 @@
+import { PREF, applyGray } from "./state/prefs.js";
 import { $ } from "./lib/core.js";
 import { renderCollection } from "./pages/collection.js";
 import { renderHome } from "./pages/home.js";
@@ -12,6 +13,7 @@ import { renderProfile } from "./pages/profile.js";
 export function route() {
   $("#modal-root").innerHTML = ""; document.body.style.overflow = "";
   stopScanner();   // turn the camera off when leaving the scanner
+  if (PREF.gray === false) { PREF.gray = true; applyGray(); }   // missing cards are grey again on every page you open
   const h = decodeURIComponent(location.hash.slice(1) || "/");
   const m = h.match(/^\/set\/(.+)$/);
   const dx = h.match(/^\/pokedex(?:\/([a-z]+))?(?:\/(\d+))?/);
