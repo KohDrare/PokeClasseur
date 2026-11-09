@@ -1,6 +1,6 @@
 import { DEX_NAMES } from "../data/dex-names.js";
 import { scanBase } from "../data/set-patches.js";
-import { getJSON, img, loadSeries, peekSet, pool } from "../data/tcgdex.js";
+import { getJSON, img, loadSeries, loadSet, peekSet, pool } from "../data/tcgdex.js";
 import { $, API, ICON, esc } from "../lib/core.js";
 import { LS } from "../lib/storage.js";
 import { setNav } from "../lib/ui.js";
@@ -125,7 +125,7 @@ export async function renderPokedex(regionId) {
 
 export const MON_CARDS = new Map();
 /* the Pokémon's page. `over`: opened from a card, on top of it; closing it goes back to that card */
-export async function openMon(n, over = null) {
+export async function openMon(n, over = null, scrollTo = 0) {
   let root = $("#modal-root");
   if (over) { root = document.getElementById("modal-stack") || document.body.appendChild(Object.assign(document.createElement("div"), { id: "modal-stack" })); }
   const q = sel => root.querySelector(sel);
@@ -152,10 +152,22 @@ export async function openMon(n, over = null) {
   q("#moncards").innerHTML = (mine.length ? `<div class="h3">Tes cartes (${mine.length})</div><div class="grid smallgrid">${mine.map(c => tile(c, 1)).join("")}</div>` : "")
     + (others.length ? `<div class="h3">${mine.length ? "Celles qui te manquent" : "Toutes ses cartes"} (${others.length})</div><div class="grid smallgrid">${others.slice().reverse().map(c => tile(c, 0)).join("")}</div>` : "")
     + `<p class="note">Clique sur une carte pour l'ouvrir dans son extension.</p>`;
-  q("#moncards").onclick = e => {
+  if (scrollTo) { const sh = q(".sheet"); if (sh) sh.scrollTop = scrollTo; }
+  // a card opens on top of this page; closing it comes back here (and, opened from a card, to that card after)
+  q("#moncards").onclick = async e => {
     const b = e.target.closest("[data-card]"); if (!b) return;
     const id = b.dataset.card, sid = id.slice(0, id.lastIndexOf("-"));
-    window.PENDING_CARD = id; close(); over?.leave?.(); location.hash = "#/set/" + encodeURIComponent(sid);
+    const y = q(".sheet")?.scrollTop || 0;
+    let set = null;
+    try { set = await loadSet(sid); } catch { /* offline */ }
+    const card = set?.cards.find(c => c.id === id);
+    if (!card) { window.PENDING_CARD = id; close(); over?.leave?.(); location.hash = "#/set/" + encodeURIComponent(sid); return; }
+    card._info = set.info;
+    close(); over?.leave?.();
+    const { openCard } = await import("../components/card-modal.js");
+    openCard(card, set.cards.filter(c => !c.linked).map(c => { c._info = set.info; return c; }), undefined, {
+      onClose: () => { const under = over?.back?.(); openMon(n, under ? { leave: () => under.close(true), back: over.back } : null, y); }
+    });
   };
 }
 export function setNameOf(cardId) {

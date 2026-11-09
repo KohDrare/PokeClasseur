@@ -16,7 +16,9 @@ import { openPricePage } from "../features/pricepage.js";
 import { UN } from "../union/store.js";
 
 /* ================= CARD MODAL ================= */
-export function openCard(card, seq, startV) {
+/* opts.onClose: called when the card is closed (opened from a Pokémon's page: back to that page).
+   Returns { close(silent) }: silent = without calling onClose */
+export function openCard(card, seq, startV, opts = {}) {
   askMotion();   // iPhone: the 3D card follows the phone (permission asked during this tap)
   const root = $("#modal-root");
   let idx = seq.findIndex(c => c.id === card.id);
@@ -203,15 +205,16 @@ export function openCard(card, seq, startV) {
   };
   /* open this Pokémon in the Pokédex */
   // the Pokémon's page opens on top of the card: closing it brings the card back
-  const goDex = n => openMon(n, { leave: close });
+  const goDex = n => openMon(n, { leave: () => close(true), back: () => openCard(seq[idx], seq, pv, opts) });
   /* language buttons of the copy you own */
   const bindLang = redraw => { const r = $("#m-lang"); if (r) r.onclick = e => { const b = e.target.closest("[data-l]"); if (!b) return; setLang(seq[idx].id, b.dataset.l); changed = true; redraw(); }; };
   let changed = false;
   const key = e => { if (e.key === "Escape") close(); if (e.key === "ArrowRight" && idx < seq.length - 1) { idx++; draw(); } if (e.key === "ArrowLeft" && idx > 0) { idx--; draw(); } };
-  function close() { untilt(); root.innerHTML = ""; document.removeEventListener("keydown", key); document.body.style.overflow = ""; if (changed) { if (location.hash.startsWith("#/stats/")) { const y = scrollY; renderSetStats(decodeURIComponent(location.hash.slice(8))).then(() => scrollTo(0, y)); } else if ($("#cards") && S.CUR) { const y = scrollY; drawCards(); refreshCounts(); scrollTo(0, y); } else if (location.hash.startsWith("#/collection")) renderCollection(); } }
+  function close(silent) { untilt(); root.innerHTML = ""; document.removeEventListener("keydown", key); document.body.style.overflow = ""; if (silent !== true) opts.onClose?.(); if (changed) { if (location.hash.startsWith("#/stats/")) { const y = scrollY; renderSetStats(decodeURIComponent(location.hash.slice(8))).then(() => scrollTo(0, y)); } else if ($("#cards") && S.CUR) { const y = scrollY; drawCards(); refreshCounts(); scrollTo(0, y); } else if (location.hash.startsWith("#/collection")) renderCollection(); } }
   document.addEventListener("keydown", key);
   document.body.style.overflow = "hidden";
   draw();
+  return { close };
 }
 export function verRow(c, v, on) {
   const q = qtyOf(c.id, v), p = priceOf(c, v);
