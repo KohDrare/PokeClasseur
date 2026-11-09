@@ -97,13 +97,13 @@ export function compact(d, setId) {
   return {
     id: d.id, setId, n: d.localId, name: d.name, img: d.image || "", r: d.rarity || "", cat: d.category || "",
     v: guessed(d) ? upcomingVariants({ r: d.rarity }) : VARIANT_ORDER.filter(k => vs[k]), p: bad ? bad.p : p.trend || p.avg || 0, ph: bad ? 0 : p["trend-holo"] || p["avg-holo"] || 0,
-    dx: d.dexId || [], il: d.illustrator || "", hp: d.hp || "", t: (d.types || []).join(", "), st: d.stage || "", rm: d.regulationMark || "", ok: 1
+    dx: d.dexId?.length ? d.dexId : d.category === "Pokémon" ? dexFromName(d.name) : [], il: d.illustrator || "", hp: d.hp || "", t: (d.types || []).join(", "), st: d.stage || "", rm: d.regulationMark || "", ok: 1
   };
 }
 const PATCHED = id => MERGED[id] || EXTRA[id] || LINKED[id] || UPCOMING[id];
 // cards with a known Pokécardex scan always use it (TCGdex may list a picture that does not exist yet)
 const fixCard = c => { if (!c.p && priceHint(c.setId, c.n)) c = { ...c, p: priceHint(c.setId, c.n), hint: 1 }; const f = CARD_FIX[c.id]; return f ? { ...c, n: f.n, src: f.src, img: f.scan ? scanBase(c.setId, f.src, f.scan) : c.img } : c; };
-export const setKey = setId => "set4:" + setId + (PATCHED(setId) ? ":p" + PATCH_V : "");
+export const setKey = setId => "set5:" + setId + (PATCHED(setId) ? ":p" + PATCH_V : "");
 const withScan = c => { c = fixCard(c); return c.img || !c.n ? c : { ...c, img: scanBase(c.scanSet || c.setId, c.src || c.n, c.extra?.scan || c.scan) }; };
 export async function loadSet(setId, onProgress) {
   const key = setKey(setId);

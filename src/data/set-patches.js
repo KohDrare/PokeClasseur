@@ -98,7 +98,7 @@ export const isScan = base => !!base && base.startsWith(SCANS);
 const plain = t => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 const DEX_INDEX = new Map(DEX_NAMES.map((n, i) => [plain(n), i + 1]));
 export function dexFromName(name) {
-  const base = (name || "").replace(/^Méga-/, "").replace(/[- ](ex|EX|GX|V|VMAX|VSTAR|LÉGENDE|TURBO|G)$/, "")
+  const base = (name || "").replace(/[\u2010-\u2015\u2212]/g, "-").replace(/^Méga-/, "").replace(/[- ](ex|EX|GX|V|VMAX|VSTAR|LÉGENDE|TURBO|G)$/, "")
     .replace(/ [XY]$/, "").replace(/ d'(Alola|Galar|Hisui|Paldea)$/, "").replace(/ (obscur|brillant|Chaleur|Lavage|Froid|Hélice|Tonte)$/, "").trim();
   const one = DEX_INDEX.get(plain(base));
   if (one) return [one];
