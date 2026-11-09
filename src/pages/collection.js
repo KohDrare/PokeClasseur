@@ -9,6 +9,8 @@ import { dexCounts } from "./pokedex.js";
 import { LANGS, condFactor, isFav, langOf, ownedAny, ownedBySet } from "../state/collection.js";
 import { SORTS, sortItems } from "../features/colsort.js";
 import { S } from "../state/shared.js";
+import { PREF, savePref } from "../state/prefs.js";
+import { SH, isMine } from "../cloud/shared.js";
 import { UN } from "../union/store.js";
 import { drawBinderShelf } from "../features/mybinders.js";
 
@@ -78,6 +80,7 @@ export async function renderCollection() {
       c: Object.assign(c, { _info: s.info }), info: s.info,
       q: vs.reduce((a, [, n]) => a + n, 0),
       val: vs.reduce((a, [v, n]) => a + priceOf(c, v) * n, 0) * condFactor(c.id),   // your copy, in its condition
+      valMine: vs.filter(([v]) => isMine(c.id, v)).reduce((a, [v, n]) => a + priceOf(c, v) * n, 0) * condFactor(c.id),   // shared extensions: only what is (also) mine
       unit: Math.max(0, ...vs.map(([v]) => priceOf(c, v))) * condFactor(c.id),
       no: parseInt((c.src || c.n || "").replace(/\D+/g, "")) || 0,
       date: s.info.date || ""
@@ -97,6 +100,8 @@ export async function renderCollection() {
 /* ---------- value card + preview ---------- */
 function drawHero(items) {
   const value = items.reduce((a, x) => a + x.val, 0);
+  const anyShared = Object.keys(SH.bySet).length > 0, mineOnly = anyShared && PREF.valShared === false;
+  const mine = items.reduce((a, x) => a + x.valMine, 0);
   const q = {};
   for (const x of items) for (const [v, n] of Object.entries(S.COL.cards[x.c.id].v)) if (n > 0) q[x.c.id + "|" + v] = n;
   const h = recordValue(Math.round(value * 100) / 100, q);
@@ -121,9 +126,10 @@ function drawHero(items) {
           <a class="vc-dex" href="#/pokedex">${svg('<path d="M12 6c-2-1.5-5-2-9-2v15c4 0 7 .5 9 2 2-1.5 5-2 9-2V4c-4 0-7 .5-9 2z"/><path d="M12 6v15"/>')}Pokédex ${dexCounts().size}/1025</a></div>
         ${h.ref ? `<div class="vc-delta"><span class="${dMkt < -0.004 ? "dn" : dMkt > 0.004 ? "up" : ""}">Marché ${sign(dMkt)} (${since})</span><span class="${dCol < -0.004 ? "dn" : dCol > 0.004 ? "up" : ""}">Collection ${sign(dCol)} (${since})</span></div>` : ""}
       </div>
-      <div class="vc-val">${eur(value).replace("–", "0 €")}</div>
-      <div class="vc-chart" id="vc-chart"></div>
-      <div class="vc-foot"><span class="note">Valeur de tes cartes au prix Cardmarket</span></div>
+      <div class="vc-val">${eur(mineOnly ? mine : value).replace("–", "0 €")}</div>
+      ${anyShared ? `<div class="seg vc-mode" id="vc-mode"><button data-m="all" class="${mineOnly ? "" : "on"}">Avec les extensions partagées</button><button data-m="mine" class="${mineOnly ? "on" : ""}">Seulement mes cartes</button></div>` : ""}
+      <div class="vc-chart" id="vc-chart" ${mineOnly ? "hidden" : ""}></div>
+      <div class="vc-foot"><span class="note">${mineOnly ? "Sans les cartes des extensions partagées qui sont seulement à tes amis" : "Valeur de tes cartes au prix Cardmarket"}</span></div>
     </div>
     <div class="colpeek">
       <div class="cp-hd2"><h2>Aperçu de mes cartes</h2><button class="linkbtn" id="peek-all">Voir tout</button></div>
@@ -136,6 +142,7 @@ function drawHero(items) {
       </div>
     </div>`;
   drawChart(h.days, value);
+  const vm = $("#vc-mode"); if (vm) vm.onclick = e => { const b = e.target.closest("[data-m]"); if (!b) return; PREF.valShared = b.dataset.m === "all"; savePref(); drawHero(items); };
   $("#peek-all").onclick = () => $("#colall").scrollIntoView({ behavior: "smooth", block: "start" });
   $("#colhero .peekgrid").onclick = e => { const b = e.target.closest("[data-peek]"); if (!b) return; const seq = top.map(x => x.c); openCardIn(seq[+b.dataset.peek], seq); };
 }

@@ -12,6 +12,8 @@ import { fmtDate, imgTag, numLabel, setNav, toast } from "../lib/ui.js";
 import { SETMETA } from "./home.js";
 import { LANGS, langOf, ownedAny, qtyOf, saveCol, setQty } from "../state/collection.js";
 import { PREF, applyGray, savePref } from "../state/prefs.js";
+import { bindShareRow, ownedBy, shareRowHTML, tileOwnersHTML } from "../features/sharesheet.js";
+import { sharedOf } from "../cloud/shared.js";
 import { S } from "../state/shared.js";
 
 /* ================= SET ================= */
@@ -74,6 +76,7 @@ export function drawSetHead() {
           <span class="go"><span>Stats</span>${ICON.next}</span>
         </a>
         ${setLangRow(info.id)}
+        ${shareRowHTML(info.id)}
         <div class="herobtns"><button class="pill" id="hb-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/></svg> Checklist</button><button class="pill" id="hb-prod"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg> Produits${(() => { const n = (S.COL.products?.[info.id] || []).reduce((a, p) => a + p.qty, 0); return n ? ` <em class="pcount">${n}</em>` : ""; })()}</button></div>
       </div>
     </div>`;
@@ -88,6 +91,7 @@ function setLangRow(setId) {
 }
 const confirmLang = (n, l) => n < 3 || window.confirm(`Mettre tes ${n} cartes de cette extension en ${l.toLowerCase()} ?`);
 export function bindHeroButtons() {
+  if (S.CUR?.data) bindShareRow(S.CUR.data.info.id, () => { if (!S.CUR.msheet) drawSetHead(); drawCards(); });
   const sl = $("#setlang");
   if (sl) sl.onclick = e => {
     const b = e.target.closest("[data-l]"); if (!b) return;
@@ -252,6 +256,8 @@ export function entries(cardLevel) {
   });
   let out = PREF.versions && !cardLevel ? list.flatMap(c => variantsOf(c).map(v => ({ c, v }))) : list.map(c => ({ c, v: null }));
   const has = e => e.v ? qtyOf(e.c.id, e.v) > 0 : ownedAny(e.c.id);
+  // shared extension, "Voir : <member>": only what this member owns
+  if (S.CUR.owner && sharedOf(S.CUR.data.info.id)) out = out.filter(e => ownedBy(S.CUR.owner, e.c.id, e.v ? [e.v] : variantsOf(e.c)));
   if (PREF.own === "have") out = out.filter(has);
   if (PREF.own === "miss") out = out.filter(e => !has(e));
   return out;
@@ -274,7 +280,7 @@ export function drawCards() {
     const price = v ? priceOf(c, v) : c.p;
     return `<div class="tile ${owned ? "owned" : "missing"}" data-i="${i}">
       <button class="cardimg" data-open="${i}" aria-label="Voir ${esc(c.name)}">${imgTag(c, "low")}${fxHTML(foilOf(c, v))}${v ? `<span class="vtag">${esc(variantShort(c, v))}</span>` : ""}</button>
-      ${q > 1 ? `<span class="qty">×${q}</span>` : ""}
+      ${q > 1 ? `<span class="qty">×${q}</span>` : ""}${owned ? tileOwnersHTML(c.id, v ? [v] : variantsOf(c)) : ""}
       <button class="check" data-tog="${i}" aria-pressed="${owned}" aria-label="${owned ? "Retirer" : "Ajouter"} ${esc(c.name)}">${ICON.check}</button>
       <div class="cap"><span class="n">${esc(numLabel(c, info))}</span>${c.ok ? symHTML(c.r) : ""}<span class="nm">${esc(c.name)}</span><span class="pr">${price ? eur(price) : ""}</span></div>
     </div>`;

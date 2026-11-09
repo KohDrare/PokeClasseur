@@ -19,7 +19,7 @@ import "./mobile.js";             // phone layout: tab bar, menu, swipes
 
 import { $ } from "./lib/core.js";
 import { LS } from "./lib/storage.js";
-import { drawCards, refreshProgress } from "./pages/set.js";
+import { drawCards, drawSetHead, refreshProgress } from "./pages/set.js";
 import { route } from "./router.js";
 import { COL_KEY } from "./state/collection.js";
 import { PREF } from "./state/prefs.js";
@@ -37,6 +37,11 @@ const redrawInPlace = () => {
 };
 addEventListener("collection:remote", redrawInPlace);
 addEventListener("prices:changed", redrawInPlace);   // Cardmarket prices refreshed in the background
+// shared extensions: members or owners changed → the extension page shows it
+addEventListener("shared:changed", () => {
+  if ($("#cards") && S.CUR?.data) { if (!S.CUR.msheet) drawSetHead(); drawCards(); }
+  import("./cloud/shared.js").then(({ SH }) => document.querySelectorAll('[data-nav="profil"], #nav-profil').forEach(t => t.classList.toggle("dot", SH.invites.length > 0)));   // a pending invitation
+});
 // another tab changed the collection: reload it
 addEventListener("storage", e => { if (e.key === COL_KEY) S.COL = LS.get(COL_KEY, S.COL); });
 // the binder shows 1 or 2 pages depending on width

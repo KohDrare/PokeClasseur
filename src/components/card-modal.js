@@ -12,6 +12,7 @@ import { LANGS, condFactor, isFav, langOf, ownedAny, qtyOf, setFav, setLang, set
 import { S } from "../state/shared.js";
 import { unToggleWish } from "../union/feed.js";
 import { openMon, sprite } from "../pages/pokedex.js";
+import { bindCardOwners, cardOwnersHTML } from "../features/sharesheet.js";
 import { openPricePage } from "../features/pricepage.js";
 import { UN } from "../union/store.js";
 
@@ -49,6 +50,7 @@ export function openCard(card, seq, startV, opts = {}) {
         <div class="h3">Ma collection</div>
         <div class="versions" id="vers">${variantsOf(c).map(v => verRow(c, v, v === pv)).join("")}</div>
           ${ownedAny(c.id) ? `<div class="langrow" id="m-lang"><span>Langue</span>${Object.entries(LANGS).map(([k, x]) => `<button class="${langOf(c.id) === k ? "on" : ""}" data-l="${k}" aria-pressed="${langOf(c.id) === k}">${x.flag} ${k}</button>`).join("")}</div>` : ""}
+          <div id="m-owners">${cardOwnersHTML(c, variantsOf(c))}</div>
         ${variantsOf(c).length > 1 ? `<p class="note" style="margin-top:8px">Clique sur une version pour la voir sur la carte.</p>` : ""}
         <div class="navrow">
           <button class="pill ghost" id="m-prev" ${idx === 0 ? "disabled" : ""}>${ICON.prev}</button>
@@ -79,13 +81,14 @@ export function openCard(card, seq, startV, opts = {}) {
       if (b) {
         const v = b.dataset.v; setQty(c, v, qtyOf(c.id, v) + (+b.dataset.d));
         b.closest(".ver").outerHTML = verRow(c, v, v === pv);
-        changed = true;
+        changed = true; paintOwners(c);
         if (v !== pv) { pv = v; showFoil(); }
         return;
       }
       const row = e.target.closest(".ver"); if (!row || row.dataset.v === pv) return;
       pv = row.dataset.v; showFoil();
     };
+    paintOwners(c, true);
     const h = $("#holo");
     h.onclick = () => openViewer(c);   // tap the card to see it full screen
     if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -134,6 +137,7 @@ export function openCard(card, seq, startV, opts = {}) {
         <div class="h3">Ma collection</div>
         <div class="versions" id="vers">${variantsOf(c).map(v => verRow(c, v, v === pv)).join("")}</div>
         ${ownedAny(c.id) ? `<div class="langrow" id="m-lang"><span>Langue</span>${Object.entries(LANGS).map(([k, x]) => `<button class="${langOf(c.id) === k ? "on" : ""}" data-l="${k}" aria-pressed="${langOf(c.id) === k}">${x.flag} ${k}</button>`).join("")}</div>` : ""}
+        <div id="m-owners">${cardOwnersHTML(c, variantsOf(c))}</div>
         <dl class="cp-rows">
           ${row("Extension", esc(c.linked ? nInfo.promoSet || "Promo" : nInfo.name || c._setName || ""))}
           ${row("Série", esc(nInfo.serie?.name || ""))}
@@ -186,7 +190,7 @@ export function openCard(card, seq, startV, opts = {}) {
       if (b) {
         const v = b.dataset.v; setQty(c, v, qtyOf(c.id, v) + (+b.dataset.d));
         b.closest(".ver").outerHTML = verRow(c, v, v === pv);
-        changed = true;
+        changed = true; paintOwners(c);
         const n = Object.values(S.COL.cards[c.id]?.v || {}).reduce((a, x) => a + x, 0);
         const o = root.querySelector(".cp-own"); o.classList.toggle("have", !!n); o.querySelector("b").textContent = n;
         if (v !== pv) { pv = v; showFoil(); }
@@ -196,6 +200,7 @@ export function openCard(card, seq, startV, opts = {}) {
       pv = rw.dataset.v; showFoil();
     };
     bindLang(() => { const y = sc.scrollTop; draw(); $("#cp-scroll").scrollTop = y; });
+    paintOwners(c, true);
     root.querySelector(".cp-rel")?.addEventListener("click", e => {
       const b = e.target.closest("[data-rel]"); if (!b) return;
       const j = seq.findIndex(x => x.id === b.dataset.rel);
@@ -205,6 +210,8 @@ export function openCard(card, seq, startV, opts = {}) {
   };
   /* open this Pokémon in the Pokédex */
   // the Pokémon's page opens on top of the card: closing it brings the card back
+  /* shared extension: who owns each version (redrawn after a quantity change) */
+  const paintOwners = (c, first) => { const box = $("#m-owners"); if (!box) return; box.innerHTML = cardOwnersHTML(c, variantsOf(c)); bindCardOwners(c, () => { changed = true; paintOwners(c); }); if (!first) changed = true; };
   const goDex = n => openMon(n, { leave: () => close(true), back: () => openCard(seq[idx], seq, pv, opts) });
   /* language buttons of the copy you own */
   const bindLang = redraw => { const r = $("#m-lang"); if (r) r.onclick = e => { const b = e.target.closest("[data-l]"); if (!b) return; setLang(seq[idx].id, b.dataset.l); changed = true; redraw(); }; };

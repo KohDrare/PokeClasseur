@@ -159,7 +159,7 @@ if (cloudEnabled && btn) {
   btn.hidden = false;
   btn.onclick = () => { location.hash = "#/profil"; };
   // load Supabase after the first screen is drawn, so the app opens just as fast as before
-  Promise.all([import("./client.js"), import("./sync.js")]).then(([c, sy]) => {
+  Promise.all([import("./client.js"), import("./sync.js"), import("./shared.js")]).then(([c, sy, sharedMod]) => {
   ({ supabase } = c);
   ({ startSync, stopSync, syncState, onSyncState, queuePush } = sy);
   setCloud({ supabase });
@@ -175,9 +175,10 @@ if (cloudEnabled && btn) {
       // outside the auth callback: Supabase calls made inside it can wait on each other
       setTimeout(() => loadMyProfile().catch(e => { console.warn("[cloud] profil", e); setCloud({ profile: { id: s.user.id, handle: null, error: profileError(e) } }); }), 0);
       startSync(s.user.id);
+      setTimeout(() => sharedMod.startShared(), 0);
       if (event === "SIGNED_IN") { toast("Connecté"); if (recovering) openModal?.(); else closeModal?.(); }
     }
-    if (!s && was) stopSync();
+    if (!s && was) { stopSync(); sharedMod.stopShared(); }
     // remove ?code=… left by the e-mail link
     if (location.search.includes("code=")) history.replaceState(null, "", location.pathname + location.hash);
   });

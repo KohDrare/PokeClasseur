@@ -8,6 +8,8 @@ import { setNav } from "../lib/ui.js";
 import { dexCounts } from "./pokedex.js";
 import { COND_F, ownedBySet } from "../state/collection.js";
 import { S } from "../state/shared.js";
+import { isMine } from "../cloud/shared.js";
+import { PREF } from "../state/prefs.js";
 
 /* ================= HOME ================= */
 S.SERIES = null;
@@ -66,7 +68,8 @@ export async function collectionValue() {
   for (const [sid, arr] of Object.entries(bySet)) {
     const s = await peekSet(sid); if (!s) continue;
     const m = new Map(s.cards.map(c => [c.id, c]));
-    for (const [id, e] of arr) { const c = m.get(id); if (!c) continue; const k = COND_F[e.c] || 1; for (const [v, n] of Object.entries(e.v)) total += priceOf(c, v) * n * k; }
+    const mineOnly = PREF.valShared === false;   // "Seulement mes cartes" (shared extensions)
+    for (const [id, e] of arr) { const c = m.get(id); if (!c) continue; const k = COND_F[e.c] || 1; for (const [v, n] of Object.entries(e.v)) if (!mineOnly || isMine(id, v)) total += priceOf(c, v) * n * k; }
   }
   return total;
 }

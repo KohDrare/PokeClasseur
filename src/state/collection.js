@@ -35,6 +35,7 @@ export function setQty(card, variant, n) {
   if (n) e.v[variant] = n; else delete e.v[variant];
   if (Object.keys(e.v).length) S.COL.cards[card.id] = e; else delete S.COL.cards[card.id];
   saveCol();
+  dispatchEvent(new CustomEvent("card:qty", { detail: { id: card.id, setId: e.s, variant, n } }));   // shared extensions listen
 }
 /* condition of your copy (set on the price page): its value is the near-mint price × this share */
 export const COND_F = { NM: 1, EX: 0.85, GD: 0.7, LP: 0.55, PL: 0.4, PO: 0.25 };

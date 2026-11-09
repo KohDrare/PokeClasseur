@@ -13,6 +13,8 @@ import { collectionValue } from "./home.js";
 import { loadSet, peekSet } from "../data/tcgdex.js";
 import { VARIANT_LABEL, eur, priceOf } from "../features/variants.js";
 import { askMotion } from "../features/tilt.js";
+import { SH, acceptInvite, activeMembers, declineInvite } from "../cloud/shared.js";
+import { avatarImg } from "../features/sharesheet.js";
 import { openSync } from "../features/sync.js";
 
 const AVATARS = [25, 133, 6, 9, 3, 150, 151, 448, 282, 197, 196, 94, 143, 249, 384, 445, 658, 778, 887, 1007, 1008, 906, 909, 912, 491, 700];
@@ -27,6 +29,7 @@ export async function renderProfile() {
     <div class="pf-grid">
       <div class="pf-col">
         <div class="pf-card" id="pf-me"></div>
+        <div class="pf-card" id="pf-share" hidden></div>
         <div class="pf-card" id="pf-acct"></div>
       </div>
       <div class="pf-col">
@@ -37,7 +40,9 @@ export async function renderProfile() {
     </div>
     <p class="note pf-ver">PokéClasseur · version du ${new Date(__BUILD__).toLocaleString("fr-BE", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}</p>
   </section>`;
-  drawHead(); drawMe(); drawAcct(); drawCol(); drawSave(); drawSettings();
+  drawHead(); drawMe(); drawAcct(); drawShare(); drawCol(); drawSave(); drawSettings();
+  const onShared = () => { if (!$("#pf-share")) return removeEventListener("shared:changed", onShared); drawShare(); };
+  addEventListener("shared:changed", onShared);
   const onCloud = () => { if (!$("#pf-head")) return off(); drawHead(); drawAcct(); if (!$("#pf-me form.pf-edit")) drawMe(); };
   const off = () => removeEventListener("account:status", onCloud);
   addEventListener("account:status", onCloud);
@@ -105,6 +110,24 @@ function drawMe(editing = false) {
       await saveMyProfile({ handle, name: $("#pf-name").value.trim(), city: $("#pf-city").value.trim() || null, bio: $("#pf-bio").value.trim() || null, avatar: av });
       toast("Profil enregistré"); drawMe(); drawHead();
     } catch (x) { err.textContent = x.message || "Enregistrement impossible"; ok.disabled = false; }
+  };
+}
+
+/* ---------- shared extensions: invitations and the ones I'm in ---------- */
+function drawShare() {
+  const el = $("#pf-share"); if (!el) return;
+  const mine = Object.values(SH.bySet), inv = SH.invites;
+  if (!signedIn() || (!mine.length && !inv.length)) { el.hidden = true; return; }
+  el.hidden = false;
+  const setName = id => (S.SERIES || []).flatMap(x => x.sets).find(t => t.id === id)?.name || id;
+  el.innerHTML = `<h2>Extensions partagées</h2>
+    ${inv.map(i => `<div class="pf-inv" data-id="${i.id}">${avatarImg({ profile: i.by }, "shav lg")}<div><b>${esc(i.by?.name || (i.by?.handle ? "@" + i.by.handle : "Quelqu'un"))}</b> t'invite à partager <b>${esc(setName(i.setId))}</b><small>Vos cartes de cette extension seront réunies dans une seule liste.</small><div class="acts"><button class="pill" data-acc="${i.id}">Accepter</button><button class="pill ghost" data-dec="${i.id}">Refuser</button></div></div></div>`).join("")}
+    ${mine.map(sh => `<a class="pf-row pf-shset" href="#/set/${encodeURIComponent(sh.setId)}"><b>${esc(setName(sh.setId))}</b><span class="pf-avs">${activeMembers(sh).map(m => avatarImg(m)).join("")}</span><small>${activeMembers(sh).length} membre${activeMembers(sh).length > 1 ? "s" : ""} · ${sh.items.size} carte${sh.items.size > 1 ? "s" : ""} (versions)</small></a>`).join("")}`;
+  el.onclick = async e => {
+    const a = e.target.closest("[data-acc]"), d = e.target.closest("[data-dec]"); if (!a && !d) return;
+    (a || d).disabled = true;
+    try { if (a) { await acceptInvite(a.dataset.acc); toast("Partage accepté : l'extension est commune"); } else { await declineInvite(d.dataset.dec); toast("Invitation refusée"); } }
+    catch (x) { toast(x.message || "Impossible pour le moment"); (a || d).disabled = false; }
   };
 }
 

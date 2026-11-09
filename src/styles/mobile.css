@@ -250,3 +250,4 @@ html.m .pricepage{align-items:flex-end;padding:0;padding-top:calc(env(safe-area-
 html.m .pp-sheet{border-radius:24px 24px 0 0;max-width:none;padding:22px 16px calc(24px + env(safe-area-inset-bottom,0px));animation:msheet .22s cubic-bezier(.2,.8,.2,1)}
 html.m .cp-price{justify-content:center;font-size:16px}
 html.m .scanstate{top:12px;bottom:auto}
+html.m .tab{position:relative}

@@ -449,5 +449,47 @@ html.m .pf-card{padding:14px}
 .setlang{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:10px 0 2px}
 .setlang>span{font-size:13px;font-weight:700;color:var(--muted);margin-right:4px}
 .setlang button{height:32px;padding:0 11px;border-radius:16px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font:inherit;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
-.setlang button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.setlang button.on{background:var(--navy);border-color:var(--navy);color:var(--navy-ink)}
 .setlang small{font-size:11px;opacity:.75}
+
+/* ---------- shared extensions ---------- */
+.shav{width:26px;height:26px;border-radius:50%;background:var(--surface-2);border:2px solid var(--surface);object-fit:contain;flex:none}
+.shav.sm{width:20px;height:20px;border-width:1px}
+.shav.xs{width:18px;height:18px;border-width:1px;margin-left:-5px}
+.shav.lg{width:40px;height:40px;padding:3px}
+.shbtn{margin-top:10px}
+.shbtn svg,.shsheet h2 svg,.cown-h svg{vertical-align:-3px}
+.shrow{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.shwith{display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:6px 12px 6px 8px;color:var(--fg);font:inherit;font-size:13px;font-weight:700;cursor:pointer;text-align:left}
+.shwith .shav+.shav{margin-left:-12px}
+.shfilter{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.shfilter>span{font-size:13px;font-weight:700;color:var(--muted)}
+.shfilter button,.cown button{display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 10px 0 5px;border-radius:16px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.shfilter button[data-u=""]{padding-left:10px}
+.shfilter button.on,.cown button.on{background:var(--navy);border-color:var(--navy);color:var(--navy-ink)}
+.tileowners{position:absolute;left:8px;top:8px;display:flex;padding-left:5px;z-index:2;pointer-events:none}
+.cowners{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+.cown-h{font-size:13px;font-weight:800;color:var(--muted)}
+.cown-h small{font-weight:500;margin-left:4px}
+.cown{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.cown-v{font-size:13px;font-weight:700;min-width:62px}
+.shsheet{max-width:480px}
+.shsheet h2{margin:0 0 12px;display:flex;gap:8px;align-items:center}
+.shmembers{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
+.shm{display:flex;align-items:center;gap:10px}
+.shm small{display:block;color:var(--muted);font-size:12.5px}
+.shform{display:flex;flex-direction:column;gap:6px;margin:6px 0 10px}
+.shform label{font-size:13px;font-weight:700;color:var(--muted)}
+.shform>div{display:flex;gap:8px}
+.shform input{flex:1;min-width:0;height:44px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--fg);padding:0 12px;font-size:16px}
+.linkbtn.danger{color:#d64545}
+.pf-inv{display:flex;gap:12px;align-items:flex-start;background:var(--surface-2);border-radius:12px;padding:12px;margin-bottom:8px}
+.pf-inv small{display:block;color:var(--muted);margin-top:3px}
+.pf-inv .acts{margin-top:10px}
+.pf-shset{position:relative;margin-bottom:8px;text-decoration:none}
+.pf-avs{position:absolute;right:12px;top:12px;display:flex}
+.pf-avs .shav+.shav{margin-left:-8px}
+.vc-mode{margin-top:8px;max-width:100%}
+.vc-mode button{font-size:12.5px}
+.tab.dot::after,.navbtn.dot::after{content:"";position:absolute;top:6px;right:calc(50% - 18px);width:9px;height:9px;border-radius:50%;background:#e5484d;border:2px solid var(--surface)}
+.navbtn{position:relative}
