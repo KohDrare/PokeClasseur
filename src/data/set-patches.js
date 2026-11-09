@@ -6,7 +6,7 @@
 import { DEX_NAMES } from "./dex-names.js";
 import { PCX } from "./pokecardex-map.js";
 
-export const PATCH_V = 10;
+export const PATCH_V = 9;
 export const SCANS = "https://pokecardex-scans.b-cdn.net/sets/";
 
 /* ---------- sets merged into another one ---------- */
@@ -153,4 +153,5 @@ export const UPCOMING = {
 };
 /* versions a card can have, from its rarity: commons, uncommons and trainers normal + reverse, rares holo + reverse,
    ex and secret rares holo only */
-export const upcomingVariants = c => [RR, IR, UR, SIR, MHR].includes(c.r) ? ["holo"] : c.r === R ? ["holo", "reverse"] : ["normal", "reverse"];
+const ONLY_HOLO = new Set([RR, IR, UR, SIR, MHR].map(x => x.toLowerCase()));
+export const upcomingVariants = c => { const r = String(c.r || "").toLowerCase(); return ONLY_HOLO.has(r) ? ["holo"] : r === R.toLowerCase() ? ["holo", "reverse"] : ["normal", "reverse"]; };

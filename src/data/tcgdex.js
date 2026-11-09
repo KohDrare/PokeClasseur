@@ -1,6 +1,5 @@
 import { PCX } from "./pokecardex-map.js";
 import { priceCheck, priceHint } from "./price-hints.js";
-import { CM_V, applyCmPrices } from "./cmprices.js";
 import { CARD_FIX, EXTRA, HIDDEN_SETS, LINKED, MERGED, PATCH_V, UPCOMING, dexFromName, extraCount, isScan, scanBase, upcomingVariants } from "./set-patches.js";
 import { VARIANT_ORDER } from "../features/variants.js";
 import { API, esc } from "../lib/core.js";
@@ -87,30 +86,30 @@ export function patchSeries(data) {
   }) }));
 }
 
-export const fairPrice = (...xs) => { const v = xs.filter(x => x > 0).sort((a, b) => a - b); if (!v.length) return 0; const m = v.length >> 1; return Math.round((v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2) * 100) / 100; };
+/* TCGdex has not entered the versions of a brand-new extension yet: it lists every card as "normal" only
+   ("generated" versions, Règne Delta in November 2026). The versions are then deduced from the rarity. */
+const guessed = d => d.variants_detailed?.length > 0 && d.variants_detailed.every(x => x.variantId === "generated");
 /* one set + every card's details (cached in IndexedDB, refreshed after 5 days for prices) */
 export function compact(d, setId) {
   const vs = d.variants || {};
   const p = d.pricing?.cardmarket || {};
-  // Cardmarket's "-holo" figures are the foil copy (reverse); a holo rare's own price is in the plain ones.
-  const plain = p.trend || p.avg || 0, foil = p["trend-holo"] || p["avg-holo"] || 0;   // Cardmarket's trend, as on its page
-  const bad = priceCheck(setId, d.localId, plain, d.pricing?.tcgplayer);
+  const bad = priceCheck(setId, d.localId, p.trend || p.avg || 0, d.pricing?.tcgplayer);
   return {
     id: d.id, setId, n: d.localId, name: d.name, img: d.image || "", r: d.rarity || "", cat: d.category || "",
-    v: VARIANT_ORDER.filter(k => vs[k]), p: bad ? bad.p : plain, ph: bad ? 0 : foil,
+    v: guessed(d) ? upcomingVariants({ r: d.rarity }) : VARIANT_ORDER.filter(k => vs[k]), p: bad ? bad.p : p.trend || p.avg || 0, ph: bad ? 0 : p["trend-holo"] || p["avg-holo"] || 0,
     dx: d.dexId || [], il: d.illustrator || "", hp: d.hp || "", t: (d.types || []).join(", "), st: d.stage || "", rm: d.regulationMark || "", ok: 1
   };
 }
 const PATCHED = id => MERGED[id] || EXTRA[id] || LINKED[id] || UPCOMING[id];
 // cards with a known Pokécardex scan always use it (TCGdex may list a picture that does not exist yet)
 const fixCard = c => { if (!c.p && priceHint(c.setId, c.n)) c = { ...c, p: priceHint(c.setId, c.n), hint: 1 }; const f = CARD_FIX[c.id]; return f ? { ...c, n: f.n, src: f.src, img: f.scan ? scanBase(c.setId, f.src, f.scan) : c.img } : c; };
-export const setKey = setId => "set3:" + setId + (PATCHED(setId) ? ":p" + PATCH_V : "");
+export const setKey = setId => "set4:" + setId + (PATCHED(setId) ? ":p" + PATCH_V : "");
 const withScan = c => { c = fixCard(c); return c.img || !c.n ? c : { ...c, img: scanBase(c.scanSet || c.setId, c.src || c.n, c.extra?.scan || c.scan) }; };
 export async function loadSet(setId, onProgress) {
   const key = setKey(setId);
   const cached = await idb.get(key);
   const fresh = cached && Date.now() - cached.at < 5 * 864e5 && cached.cards.every(c => c.ok);
-  if (fresh) { await cmCheck(cached, key, cached.info.cmV !== CM_V, false); return cached; }   // first time: wait for the right prices
+  if (fresh) return cached;
   const s = await getJSON(`${API}/sets/${encodeURIComponent(setId)}`).catch(e => { if (UPCOMING[setId]) return null; throw e; });
   if (!s && UPCOMING[setId]) return upcomingSet(setId, key);
   if (!s) throw new Error("Extension introuvable");
@@ -166,18 +165,8 @@ export async function loadSet(setId, onProgress) {
     } catch {}
     done++; if (done % 6 === 0 || done === cards.length) onProgress?.(res, done / cards.length);
   });
-  await cmCheck(res, key, true);
+  await idb.set(key, res);
   return res;
-}
-/* Cardmarket's own prices on every card (twice a day at most); first load waits for them, later ones not */
-async function cmCheck(res, key, wait, force = wait) {
-  const go = async () => {
-    if (res.info.upcoming || (!force && res.info.cmV === CM_V && res.info.cmGot && Date.now() - res.info.cmGot < 12 * 36e5)) return;
-    const changed = await applyCmPrices(res).catch(() => false);
-    await idb.set(key, res);
-    if (changed && !wait) dispatchEvent(new CustomEvent("prices:changed", { detail: res.info.id }));
-  };
-  if (wait) await go(); else go();
 }
 /* an announced set built from the cards revealed so far (checked again online every day) */
 async function upcomingSet(setId, key) {
@@ -193,8 +182,4 @@ async function upcomingSet(setId, key) {
   await idb.set(key, res);
   return res;
 }
-export async function peekSet(setId) {
-  const key = setKey(setId), s = await idb.get(key);
-  if (s) await cmCheck(s, key, true, false);   // Cardmarket prices on it too (no wait once they are there)
-  return s;
-}
+export async function peekSet(setId) { return idb.get(setKey(setId)); }

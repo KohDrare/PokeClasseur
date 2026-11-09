@@ -1,13 +1,11 @@
 /* Price page of a card (the "€" button): a fair price that resists one-off sales, the price by condition,
    the Cardmarket details and links to compare (Cardmarket, eBay sold items, Vinted).
-   Prices: Cardmarket's own daily price guide, matched to the card's own Cardmarket page (data/cmprices.js);
-   TCGdex (Cardmarket in €, TCGplayer in $) when a card is not in it. */
+   Prices are fetched fresh from TCGdex (Cardmarket in €, TCGplayer in $) when the page opens. */
 import { getJSON } from "../data/tcgdex.js";
 import { $, API, ICON, esc } from "../lib/core.js";
 import { imgTag, numLabel } from "../lib/ui.js";
 import { VARIANT_LABEL, eur, variantsOf } from "./variants.js";
 import { PRICE_DATE, priceCheck } from "../data/price-hints.js";
-import { cmFigures, cmSet } from "../data/cmprices.js";
 import { condOf, ownedAny, setCond } from "../state/collection.js";
 
 /* how much a card is worth by condition, as a share of a near-mint copy (usual Cardmarket ratios) */
@@ -21,14 +19,14 @@ export const CONDITIONS = [
 ];
 const median = a => { const v = a.filter(x => x > 0).sort((x, y) => x - y); if (!v.length) return 0; const m = v.length >> 1; return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2; };
 
-/* the Cardmarket figures of one version: the card itself uses the plain fields, its reverse the "-holo" ones */
+/* the Cardmarket figures of one version: normal cards use the plain fields, reverse/holo the "-holo" ones */
 function figures(cm, v) {
   if (!cm) return null;
-  const h = v === "reverse" ? "-holo" : "";   // Cardmarket's "-holo" figures are the foil (reverse) copy, not a holo rare
+  const h = v === "reverse" || (v === "holo" && cm["trend-holo"]) ? "-holo" : "";
   const f = { trend: cm["trend" + h], avg1: cm["avg1" + h], avg7: cm["avg7" + h], avg30: cm["avg30" + h], low: cm["low" + h], avg: cm["avg" + h] };
   if (h && !f.trend && !f.avg7 && !f.avg30) return figures(cm, "normal");   // no foil prices: fall back
   // fair price: middle of the trend and the 7- and 30-day averages (one strange sale cannot move it much)
-  f.fair = f.trend || f.avg || median([f.avg7, f.avg30]) || 0;   // the trend, as Cardmarket shows it
+  f.fair = median([f.trend, f.avg7, f.avg30]) || f.avg || f.trend || 0;
   const pts = [f.avg30, f.avg7, f.avg1].filter(x => x > 0);
   f.lo = pts.length ? Math.min(...pts) : 0; f.hi = pts.length ? Math.max(...pts) : 0;
   return f;
@@ -45,12 +43,8 @@ export async function openPricePage(c, info, startV, onChange) {
   addEventListener("keydown", key, true);
   el.onclick = e => { if (e.target === el || e.target.closest("#pp-close")) close(); };
 
-  const sid = c.id.slice(0, c.id.lastIndexOf("-"));
-  const [d, cmData] = await Promise.all([
-    getJSON(`${API}/cards/${encodeURIComponent(c.id)}`).catch(() => null),
-    cmSet(sid).catch(() => null)
-  ]);
-  const own = cmFigures(cmData?.c?.[c.src || c.id.slice(c.id.lastIndexOf("-") + 1)]);
+  let d = null;
+  try { d = await getJSON(`${API}/cards/${encodeURIComponent(c.id)}`); } catch { /* offline */ }
   if (!el.isConnected) return;
   const cm = d?.pricing?.cardmarket, tp = d?.pricing?.tcgplayer;
   const vs = variantsOf(c);
@@ -62,15 +56,9 @@ export async function openPricePage(c, info, startV, onChange) {
   const owned = ownedAny(c.id);
   let cond = condOf(c.id);
   const draw = () => {
-    const rev = v === "reverse";
     let f = figures(cm, v);
-    const mine = own && (rev ? own.reverse : own.normal);
-    const tdx = f?.fair || 0;
-    if (mine?.fair) {
-      f = { ...mine, cmOwn: true, cmWrong: own.id !== cm?.idProduct && tdx && Math.abs(tdx - mine.fair) > 0.05 ? tdx : 0 };
-      const pts = [f.avg30, f.avg7, f.avg1].filter(y => y > 0); f.lo = pts.length ? Math.min(...pts) : 0; f.hi = pts.length ? Math.max(...pts) : 0;
-    }
-    const bad = !mine?.fair && f?.fair && !rev ? priceCheck(c.setId, c.n, f.fair, tp) : null;
+    // Cardmarket figures linked to the wrong product (another version of the card): hand price or TCGplayer instead
+    const bad = f?.fair && v !== "reverse" ? priceCheck(c.setId, c.n, f.fair, tp) : null;
     if (bad) f = { fair: bad.p, hint: true, src: bad.src, cmWrong: f.fair };
     else if ((!f || !f.fair) && c.p && v !== "reverse") f = { fair: c.p, hint: true, src: "hint" };
     const fair = f?.fair || 0;
@@ -89,14 +77,13 @@ export async function openPricePage(c, info, startV, onChange) {
           <div class="pp-val">${eur(Math.max(0.02, fair * k.f))}</div>
           ${k.k !== "NM" ? `<div class="note">Comme neuve : ${eur(fair)}</div>` : ""}`; })()}
           ${f.lo && f.hi && f.hi - f.lo > 0.01 ? `<div class="note">Fourchette récente (comme neuve) : ${eur(f.lo)} – ${eur(f.hi)}</div>` : ""}
-          ${f.cmOwn && f.cmWrong ? `<div class="note">Prix corrigé : la base de cartes la confondait avec une autre carte sur Cardmarket (${eur(f.cmWrong)}).</div>` : ""}
-          ${f.hint && f.cmWrong ? `<div class="note">La base de prix associe cette carte à une autre version sur Cardmarket (${eur(f.cmWrong)}) : ${f.src === "tcgplayer" ? "prix TCGplayer converti en euros utilisé à la place" : "prix relevé à la main utilisé à la place"}.</div>` : ""}
+          ${f.cmWrong ? `<div class="note">La base de prix associe cette carte à une autre version sur Cardmarket (${eur(f.cmWrong)}) : ${f.src === "tcgplayer" ? "prix TCGplayer converti en euros utilisé à la place" : "prix relevé à la main utilisé à la place"}.</div>` : ""}
           ${f.hint && f.src === "hint" && !f.cmWrong ? `<div class="note">Prix relevé à la main le ${new Date(PRICE_DATE[c.setId] || Date.now()).toLocaleDateString("fr-BE", { day: "numeric", month: "long" })} (ventes Cardmarket) : l'extension est trop récente pour la base de prix.</div>` : ""}
         </div>
         <div class="pp-h">${owned ? "État de ta carte <small>touche pour le changer</small>" : "Selon l'état"}</div>
         <div class="pp-conds">${CONDITIONS.map(k => `<button class="pp-cond ${owned && k.k === cond ? "on" : ""}" data-k="${k.k}" style="--cc:${k.col}" ${owned ? "" : "disabled"}><span class="pp-k">${k.k}</span><span class="pp-cl">${k.fr}<small>${k.l} · ${Math.round(k.f * 100)} %</small></span><b>${eur(Math.max(0.02, fair * k.f))}</b>${owned && k.k === cond ? `<i class="pp-mine">Ma carte</i>` : ""}</button>`).join("")}</div>
         ${bars(f)}
-        ${f.hint ? "" : `        <div class="pp-h">Détail Cardmarket${f.cmOwn && cmData?.at ? ` <small>guide des prix du ${new Date(cmData.at).toLocaleDateString("fr-BE", { day: "numeric", month: "long" })}</small>` : ""}</div>
+        ${f.hint ? "" : `        <div class="pp-h">Détail Cardmarket</div>
         <div class="pp-rows">
           ${row("Tendance", f.trend)}${row("Moyenne 1 jour", f.avg1)}${row("Moyenne 7 jours", f.avg7)}${row("Moyenne 30 jours", f.avg30)}${row("Plus bas en vente", f.low, "souvent un exemplaire abîmé")}
           ${tpv?.marketPrice ? `<div class="pp-row"><span>TCGplayer (USA)<small>prix du marché</small></span><b>${tpv.marketPrice.toLocaleString("fr-BE", { style: "currency", currency: "USD" })}</b></div>` : ""}
@@ -108,7 +95,7 @@ export async function openPricePage(c, info, startV, onChange) {
         <a class="pill ghost" target="_blank" rel="noopener" href="https://www.ebay.fr/sch/i.html?_nkw=${q}&LH_Sold=1&LH_Complete=1">eBay · vendues</a>
         <a class="pill ghost" target="_blank" rel="noopener" href="https://www.vinted.fr/catalog?search_text=${q}">Vinted</a>
       </div>
-      <p class="note pp-foot">Le prix estimé est la tendance Cardmarket, comme sur la fiche de la carte. Les prix par état suivent les écarts habituels sur Cardmarket. Pour voir les dernières ventes une par une, ouvre « eBay · vendues ».${!f?.cmOwn && cm?.updated ? ` Mis à jour le ${new Date(cm.updated).toLocaleDateString("fr-BE", { day: "numeric", month: "long" })}.` : ""}</p>`;
+      <p class="note pp-foot">Le prix estimé est la valeur du milieu entre la tendance Cardmarket et ses moyennes sur 7 et 30 jours : une vente isolée trop chère ou bradée ne le fausse pas. Les prix par état suivent les écarts habituels sur Cardmarket. Pour voir les dernières ventes une par une, ouvre « eBay · vendues ».${cm?.updated ? ` Mis à jour le ${new Date(cm.updated).toLocaleDateString("fr-BE", { day: "numeric", month: "long" })}.` : ""}</p>`;
     el.querySelector(".pp-vers")?.addEventListener("click", e => { const b = e.target.closest("[data-v]"); if (b) { v = b.dataset.v; draw(); } });
     el.querySelector(".pp-conds")?.addEventListener("click", e => { const b = e.target.closest("[data-k]"); if (!b || !owned) return; setCond(c.id, b.dataset.k); cond = b.dataset.k; onChange?.(); draw(); });
   };

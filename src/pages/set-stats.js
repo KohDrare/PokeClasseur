@@ -86,7 +86,7 @@ export async function renderSetStats(setId) {
 
   $("#stbody").innerHTML = `
     <div class="kpis">
-      <div class="kpi accent"><span>Valeur de ta collection</span><b>${money(value)}</b><small>guide des prix Cardmarket</small></div>
+      <div class="kpi accent"><span>Valeur de ta collection</span><b>${money(value)}</b><small>prix tendance Cardmarket</small></div>
       <div class="kpi"><span>Argent investi</span><b>${money(spent)}</b><small>${prods.length ? plural(prods.length, "achat") + " noté" + (prods.length > 1 ? "s" : "") : "aucun achat noté"}</small></div>
       <div class="kpi ${spent ? (balance >= 0 ? "good" : "bad") : ""}"><span>Bilan</span><b>${spent ? (balance >= 0 ? "+" : "−") + money(Math.abs(balance)) : "–"}</b><small>valeur des cartes − argent investi</small></div>
       <div class="kpi"><span>Boosters ouverts</span><b>${boosters}</b><small>${perBooster ? `${eur(perBooster)} le booster en moyenne` : "ajoute tes achats pour le prix"}</small></div>
@@ -127,7 +127,7 @@ export async function renderSetStats(setId) {
     ${best.length ? `<section class="stsec"><h2>Tes cartes les plus chères</h2><div class="grid smallgrid">${best.slice(0, 8).map(u => tile(u, eur(uValue(u)))).join("")}</div></section>` : ""}
     ${doubles.length ? `<section class="stsec"><h2>Tes doubles <small>${plural(extra, W[0])} à échanger</small></h2><div class="grid smallgrid">${doubles.map(u => tile(u, "×" + uCopies(u))).join("")}</div></section>` : ""}
     ${missU.length ? `<section class="stsec"><h2>${byV ? "Les versions manquantes les plus chères" : "Les manquantes les plus chères"}</h2><div class="grid smallgrid">${[...missU].sort((a, b) => uPrice(b) - uPrice(a)).slice(0, 8).map(u => tile(u, uPrice(u) ? eur(uPrice(u)) : "")).join("")}</div></section>` : ""}
-    <p class="note" style="padding-block:24px 60px">Prix : guide des prix Cardmarket du jour, pris sur la fiche de chaque carte. Les reverse utilisent le prix reverse quand il existe.</p>`;
+    <p class="note" style="padding-block:24px 60px">Prix : tendance Cardmarket du jour (via TCGdex). Les reverse utilisent le prix reverse quand il existe.</p>`;
 
   const redraw = () => { if (location.hash.startsWith("#/stats/")) renderSetStats(setId); };
   $("#add-buy").onclick = () => openBuyPicker(info, redraw);

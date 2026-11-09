@@ -56,7 +56,7 @@ export function openCard(card, seq, startV) {
           <button class="pill ghost" id="m-wish">${UN.wish.some(w => w.id === c.id) ? "Dans ma liste" : "Je la cherche"}</button>
           ${ownedAny(c.id) ? `<button class="pill ghost ${isFav(c.id) ? "on" : ""}" id="m-fav">${isFav(c.id) ? "★ Favorite" : "☆ Favori"}</button>` : ""}
         </div>
-        <p class="note" style="margin-top:14px">Prix : tendance Cardmarket. Utilise ← et → pour passer d'une carte à l'autre.</p>
+        <p class="note" style="margin-top:14px">Prix : tendance Cardmarket (TCGdex). Utilise ← et → pour passer d'une carte à l'autre.</p>
       </div></div></div>`;
     $("#m-close").onclick = close;
     $("#mdl").onclick = e => { if (e.target.id === "mdl") close(); };
