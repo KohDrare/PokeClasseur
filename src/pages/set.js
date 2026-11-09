@@ -8,9 +8,9 @@ import { rarity, symHTML, symSVG } from "../features/rarity.js";
 import { VARIANT_LABEL, eur, foilOf, fxHTML, mainVariant, priceOf, variantShort, variantsOf } from "../features/variants.js";
 import { $, ICON, esc } from "../lib/core.js";
 import { LS } from "../lib/storage.js";
-import { fmtDate, imgTag, numLabel, setNav } from "../lib/ui.js";
+import { fmtDate, imgTag, numLabel, setNav, toast } from "../lib/ui.js";
 import { SETMETA } from "./home.js";
-import { ownedAny, qtyOf, setQty } from "../state/collection.js";
+import { LANGS, langOf, ownedAny, qtyOf, saveCol, setQty } from "../state/collection.js";
 import { PREF, applyGray, savePref } from "../state/prefs.js";
 import { S } from "../state/shared.js";
 
@@ -73,12 +73,30 @@ export function drawSetHead() {
           ${progHTML(k)}
           <span class="go"><span>Stats</span>${ICON.next}</span>
         </a>
+        ${setLangRow(info.id)}
         <div class="herobtns"><button class="pill" id="hb-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/></svg> Checklist</button><button class="pill" id="hb-prod"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg> Produits${(() => { const n = (S.COL.products?.[info.id] || []).reduce((a, p) => a + p.qty, 0); return n ? ` <em class="pcount">${n}</em>` : ""; })()}</button></div>
       </div>
     </div>`;
   bindHeroButtons();
 }
+/* the language of every card I own in this extension, in one tap (an English display opened in English…) */
+function ownedHere(setId) { return Object.entries(S.COL.cards).filter(([id, e]) => e.s === setId || id.startsWith(setId + "-")).map(([id]) => id); }
+function setLangRow(setId) {
+  const ids = ownedHere(setId); if (!ids.length) return "";
+  const count = k => ids.filter(id => langOf(id) === k).length;
+  return `<div class="setlang" id="setlang" data-set="${esc(setId)}"><span>Langue de mes cartes</span>${Object.entries(LANGS).map(([k, x]) => `<button class="${count(k) === ids.length ? "on" : ""}" data-l="${k}" title="Mettre toutes mes cartes de l'extension en ${x.l.toLowerCase()}">${x.flag} ${k}${count(k) && count(k) < ids.length ? ` <small>${count(k)}</small>` : ""}</button>`).join("")}</div>`;
+}
+const confirmLang = (n, l) => n < 3 || window.confirm(`Mettre tes ${n} cartes de cette extension en ${l.toLowerCase()} ?`);
 export function bindHeroButtons() {
+  const sl = $("#setlang");
+  if (sl) sl.onclick = e => {
+    const b = e.target.closest("[data-l]"); if (!b) return;
+    const ids = ownedHere(sl.dataset.set), k = b.dataset.l;
+    if (!confirmLang(ids.length, LANGS[k].l)) return;
+    ids.forEach(id => { if (k === "FR") delete S.COL.cards[id].l; else S.COL.cards[id].l = k; });
+    saveCol(); sl.outerHTML = setLangRow(sl.dataset.set); bindHeroButtons();
+    toast(`${ids.length} carte${ids.length > 1 ? "s" : ""} en ${LANGS[k].l.toLowerCase()}`);
+  };
   const c = $("#hb-check"), pr = $("#hb-prod"); if (!c) return;
   const shut = () => { if (S.CUR?.msheet) mobSheet(null); };
   c.onclick = () => { shut(); PREF.view = "list"; savePref(); S.CUR.page = 0; drawSetBody(); $("#cards").scrollIntoView({ block: "start", behavior: "smooth" }); };

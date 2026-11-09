@@ -445,3 +445,9 @@ html.m .pf-av{width:64px;height:64px}
 html.m .pf-card{padding:14px}
 #btn-account{display:none!important}   /* the "Profil" tab does its job now */
 #modal-stack .modal{z-index:120}   /* a Pokémon opened from a card, above that card */
+/* language of all my cards of an extension */
+.setlang{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:10px 0 2px}
+.setlang>span{font-size:13px;font-weight:700;color:var(--muted);margin-right:4px}
+.setlang button{height:32px;padding:0 11px;border-radius:16px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font:inherit;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+.setlang button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.setlang small{font-size:11px;opacity:.75}
