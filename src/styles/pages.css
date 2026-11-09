@@ -504,3 +504,20 @@ html.m .pf-card{padding:14px}
 .mprice .mp-l small{font-weight:500;font-size:12px}
 .mprice b{margin-left:auto;font-size:26px;font-weight:800;letter-spacing:-.01em;white-space:nowrap}
 .mprice .mp-go{font-size:13px;font-weight:700;opacity:.85;white-space:nowrap}
+/* ---------- other trainers ---------- */
+.tr-list{display:flex;flex-direction:column;margin:10px 0 4px}
+.tr-row{color:inherit;text-decoration:none;border-radius:12px;padding:7px 8px;margin:0 -8px}
+.tr-row:hover{background:var(--surface-2)}
+.tr-row>svg{width:18px;height:18px;color:var(--muted);flex:none}
+.tr-head .pf-hero{margin-bottom:14px}
+.tr-bio{margin:8px 0 0;line-height:1.45}
+.tr-stats{grid-template-columns:repeat(5,minmax(0,1fr))}
+.tr-stats>div,.tr-stats>button{background:var(--surface-2);border:0;border-radius:12px;padding:10px 12px;color:inherit;font:inherit;text-align:left;min-width:0}
+.tr-stats>button{cursor:pointer}
+.tr-stats b{display:block;font-size:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr-stats small{color:var(--muted);font-size:12px}
+.tr-private{grid-column:span 3}
+.tr-head+.prtabs{margin:16px 0 12px}
+.profile-page>.crumb{display:inline-flex;margin-bottom:12px}
+@media (max-width:760px){.tr-stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.pf-card.tr-head{display:flex;flex-direction:column;align-items:stretch}.tr-head .acts{margin-top:14px}

@@ -84,6 +84,12 @@ describe("shared extension", () => {
     expect(shared.isMine("me05-001", "normal")).toBe(true);    // everyone's
     expect(shared.isMine("sv08-010", "normal")).toBe(true);    // not shared: mine
   });
+  it("an owner removed by mistake can be put back (everyone again)", async () => {
+    await shared.setOwners("me05-001", "normal", ["A"]);
+    await shared.setOwners("me05-001", "normal", ["A", "B"]);
+    expect(db.shared_items.find(r => r.card_id === "me05-001" && r.variant === "normal").owners).toBe(null);
+    expect(shared.ownersOf("me05-001", "normal").map(m => m.user_id).sort()).toEqual(["A", "B"]);
+  });
   it("B leaves: keeps the cards that are (also) his", async () => {
     await shared.setOwners("me05-116", "holo", ["A"]);         // A says the holo is his
     as("B", colB);

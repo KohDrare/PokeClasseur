@@ -15,6 +15,7 @@ import { VARIANT_LABEL, eur, priceOf } from "../features/variants.js";
 import { askMotion } from "../features/tilt.js";
 import { SH, acceptInvite, activeMembers, declineInvite } from "../cloud/shared.js";
 import { avatarImg } from "../features/sharesheet.js";
+import { drawTrainerSearch, trainerLink } from "./trainer.js";
 import { openSync } from "../features/sync.js";
 
 const AVATARS = [25, 133, 6, 9, 3, 150, 151, 448, 282, 197, 196, 94, 143, 249, 384, 445, 658, 778, 887, 1007, 1008, 906, 909, 912, 491, 700];
@@ -29,6 +30,7 @@ export async function renderProfile() {
     <div class="pf-grid">
       <div class="pf-col">
         <div class="pf-card" id="pf-me"></div>
+        <div class="pf-card" id="pf-people" hidden></div>
         <div class="pf-card" id="pf-share" hidden></div>
         <div class="pf-card" id="pf-acct"></div>
       </div>
@@ -40,10 +42,10 @@ export async function renderProfile() {
     </div>
     <p class="note pf-ver">PokéClasseur · version du ${new Date(__BUILD__).toLocaleString("fr-BE", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}</p>
   </section>`;
-  drawHead(); drawMe(); drawAcct(); drawShare(); drawCol(); drawSave(); drawSettings();
+  drawHead(); drawMe(); drawAcct(); drawShare(); drawCol(); drawSave(); drawSettings(); drawTrainerSearch($("#pf-people"));
   const onShared = () => { if (!$("#pf-share")) return removeEventListener("shared:changed", onShared); drawShare(); };
   addEventListener("shared:changed", onShared);
-  const onCloud = () => { if (!$("#pf-head")) return off(); drawHead(); drawAcct(); if (!$("#pf-me form.pf-edit")) drawMe(); };
+  const onCloud = () => { if (!$("#pf-head")) return off(); drawHead(); drawAcct(); if (!$("#pf-me form.pf-edit")) drawMe(); if ($("#pf-people")?.hidden) drawTrainerSearch($("#pf-people")); };
   const off = () => removeEventListener("account:status", onCloud);
   addEventListener("account:status", onCloud);
 }
@@ -80,8 +82,20 @@ function drawMe(editing = false) {
     el.innerHTML = `<h2>Mon profil de dresseur</h2>
       ${p.handle ? `<dl class="pf-dl"><dt>Pseudo</dt><dd>${esc(p.name || "–")}</dd><dt>Identifiant</dt><dd>@${esc(p.handle)}</dd>${p.city ? `<dt>Ville</dt><dd>${esc(p.city)}</dd>` : ""}${p.bio ? `<dt>Bio</dt><dd>${esc(p.bio)}</dd>` : ""}</dl>`
         : `<p class="note">${p.error ? esc(p.error) : "Choisis un pseudo et un avatar : ils serviront plus tard pour les échanges entre dresseurs."}</p>`}
-      <div class="acts"><button class="pill ${p.handle ? "ghost" : ""}" id="pf-edit">${p.handle ? "Modifier" : "Créer mon profil"}</button></div>`;
+      <div class="acts"><button class="pill ${p.handle ? "ghost" : ""}" id="pf-edit">${p.handle ? "Modifier" : "Créer mon profil"}</button>${p.handle ? `<button class="pill ghost" id="pf-show">Choisir ma vitrine</button><a class="pill ghost" href="${trainerLink(p.handle)}">Voir mon profil public</a>` : ""}</div>
+      ${p.handle ? `<div class="pf-rows" style="margin-top:12px"><button class="pf-row pf-sw ${p.show_collection ? "on" : ""}" id="pf-pub" role="switch" aria-checked="${!!p.show_collection}"><span><b>Collection visible par les autres</b><small>Ton nombre de cartes, d'extensions et de Pokémon sur ton profil public</small></span><i></i></button></div>` : ""}`;
     $("#pf-edit").onclick = () => drawMe(true);
+    const pub = $("#pf-pub");
+    if (pub) pub.onclick = async () => { pub.disabled = true; try { await saveMyProfile({ show_collection: !p.show_collection }); toast(p.show_collection ? "Ta collection est privée" : "Ta collection est visible sur ton profil"); } catch (x) { toast(x.message || "Impossible pour le moment"); } drawMe(); };
+    const sw = $("#pf-show");
+    if (sw) sw.onclick = async () => {
+      const { unPickCards } = await import("../union/picker.js");
+      const cur = Array.isArray(p.showcase) ? p.showcase : [];
+      unPickCards({ title: "Ma vitrine (12 cartes maximum)", only: "mine" }, async cs => {
+        const next = [...cs, ...cur.filter(o => !cs.some(c => c.id === o.id))].slice(0, 12).map(c => ({ id: c.id, name: c.name, img: c.img, set: c.set, n: c.n, r: c.r || "", p: c.p || 0 }));
+        try { await saveMyProfile({ showcase: next }); toast("Vitrine mise à jour"); } catch (x) { toast(x.message || "Impossible pour le moment"); }
+      });
+    };
     return;
   }
   let av = p.avatar || 25;

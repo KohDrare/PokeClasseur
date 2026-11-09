@@ -8,6 +8,7 @@ import { renderSetStats } from "./pages/set-stats.js";
 import { renderSet } from "./pages/set.js";
 import { renderUnion } from "./union/shell.js";   // Union Room: kept, not in the menus for now (#/union still opens it)
 import { renderProfile } from "./pages/profile.js";
+import { renderTrainer } from "./pages/trainer.js";
 
 /* ================= ROUTER ================= */
 export function route() {
@@ -22,6 +23,7 @@ export function route() {
   else if (h.startsWith("/stats/")) renderSetStats(h.slice(7));
   else if (h === "/union" || h.startsWith("/union/")) renderUnion(h.slice(7));
   else if (h.startsWith("/profil")) renderProfile();
+  else if (h.startsWith("/dresseur/")) renderTrainer(h.slice(10).replace(/^@/, "").toLowerCase());
   else if (h.startsWith("/collection")) renderCollection();
   else if (h.startsWith("/scan")) renderScan();
   else renderHome();

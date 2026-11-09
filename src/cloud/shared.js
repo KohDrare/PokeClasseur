@@ -106,7 +106,7 @@ function listen() {
 async function writeItem(sh, cardId, variant, qty, owners) {
   const k = ik(cardId, variant);
   if (qty > 0) {
-    const row = { shared_id: sh.id, card_id: cardId, variant, qty, owners: owners ?? sh.items.get(k)?.owners ?? null, updated_by: me(), updated_at: new Date().toISOString() };
+    const row = { shared_id: sh.id, card_id: cardId, variant, qty, owners: owners === undefined ? (sh.items.get(k)?.owners ?? null) : owners, updated_by: me(), updated_at: new Date().toISOString() };
     sh.items.set(k, row);
     const { error } = await db().from("shared_items").upsert(row, { onConflict: "shared_id,card_id,variant" });
     if (error) throw error;
