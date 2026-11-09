@@ -11,7 +11,7 @@ import { drawCards, refreshCounts } from "../pages/set.js";
 import { LANGS, condFactor, isFav, langOf, ownedAny, qtyOf, setFav, setLang, setQty } from "../state/collection.js";
 import { S } from "../state/shared.js";
 import { unToggleWish } from "../union/feed.js";
-import { regionOf, sprite } from "../pages/pokedex.js";
+import { openMon, sprite } from "../pages/pokedex.js";
 import { openPricePage } from "../features/pricepage.js";
 import { UN } from "../union/store.js";
 
@@ -202,7 +202,8 @@ export function openCard(card, seq, startV) {
     });
   };
   /* open this Pokémon in the Pokédex */
-  const goDex = n => { close(); location.hash = `#/pokedex/${regionOf(n)?.id || "national"}/${n}`; };
+  // the Pokémon's page opens on top of the card: closing it brings the card back
+  const goDex = n => openMon(n, { leave: close });
   /* language buttons of the copy you own */
   const bindLang = redraw => { const r = $("#m-lang"); if (r) r.onclick = e => { const b = e.target.closest("[data-l]"); if (!b) return; setLang(seq[idx].id, b.dataset.l); changed = true; redraw(); }; };
   let changed = false;

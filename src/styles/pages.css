@@ -444,3 +444,4 @@ html.m .profile-page{padding:14px 14px 30px}
 html.m .pf-av{width:64px;height:64px}
 html.m .pf-card{padding:14px}
 #btn-account{display:none!important}   /* the "Profil" tab does its job now */
+#modal-stack .modal{z-index:120}   /* a Pokémon opened from a card, above that card */

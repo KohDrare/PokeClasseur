@@ -124,35 +124,38 @@ export async function renderPokedex(regionId) {
 }
 
 export const MON_CARDS = new Map();
-export async function openMon(n) {
-  const root = $("#modal-root");
+/* the Pokémon's page. `over`: opened from a card, on top of it; closing it goes back to that card */
+export async function openMon(n, over = null) {
+  let root = $("#modal-root");
+  if (over) { root = document.getElementById("modal-stack") || document.body.appendChild(Object.assign(document.createElement("div"), { id: "modal-stack" })); }
+  const q = sel => root.querySelector(sel);
   const name = DEX_NAMES[n - 1], reg = regionOf(n);
   root.innerHTML = `<div class="modal" id="mdl"><div class="sheet monsheet" role="dialog" aria-modal="true" aria-label="${esc(name)}">
     <button class="iconbtn close" id="m-close" aria-label="Fermer">${ICON.x}</button>
     <div class="monhero"><img src="${artwork(n)}" alt="${esc(name)}"><div><div class="mno">${dexNo(n)}${reg ? " · " + reg.name : ""}</div><h2>${esc(name)}</h2><div id="monstatus" class="note"></div></div></div>
     <div id="moncards"><div class="empty-state" style="padding:30px 0"><b>Recherche de ses cartes…</b></div></div>
   </div></div>`;
-  const close = () => { root.innerHTML = ""; document.body.style.overflow = ""; document.removeEventListener("keydown", key); };
-  const key = e => { if (e.key === "Escape") close(); };
-  document.addEventListener("keydown", key); document.body.style.overflow = "hidden";
-  $("#m-close").onclick = close; $("#mdl").onclick = e => { if (e.target.id === "mdl") close(); };
+  const close = () => { root.innerHTML = ""; if (!over) document.body.style.overflow = ""; document.removeEventListener("keydown", key, true); };
+  const key = e => { if (e.key === "Escape") { e.stopImmediatePropagation(); close(); } };
+  document.addEventListener("keydown", key, true); document.body.style.overflow = "hidden";
+  q("#m-close").onclick = close; q("#mdl").onclick = e => { if (e.target.id === "mdl") close(); };
   let all = MON_CARDS.get(n);
   try { if (!all) { all = (await getJSON(`${API}/cards?dexId=eq:${n}`)) || []; MON_CARDS.set(n, all); } }
-  catch { if ($("#moncards")) $("#moncards").innerHTML = `<div class="empty-state"><b>Impossible de charger ses cartes</b>Vérifie ta connexion.</div>`; return; }
-  if (!$("#moncards")) return;
+  catch { if (q("#moncards")) q("#moncards").innerHTML = `<div class="empty-state"><b>Impossible de charger ses cartes</b>Vérifie ta connexion.</div>`; return; }
+  if (!q("#moncards")) return;
   if (!S.SERIES) { try { S.SERIES = await loadSeries(); } catch {} }
-  if (!$("#moncards")) return;
+  if (!q("#moncards")) return;
   const pic = c => c.image ? `${c.image}/low.webp` : img(scanBase(c.id.slice(0, c.id.lastIndexOf("-")), c.localId));
   const mine = all.filter(c => ownedAny(c.id)), others = all.filter(c => !ownedAny(c.id) && pic(c));
-  $("#monstatus").innerHTML = mine.length ? `<span class="okchip">${ICON.check} Attrapé · ${mine.length} carte${mine.length > 1 ? "s" : ""}</span> sur ${all.length} existantes` : `Pas encore dans ta collection · ${all.length} cartes existantes`;
+  q("#monstatus").innerHTML = mine.length ? `<span class="okchip">${ICON.check} Attrapé · ${mine.length} carte${mine.length > 1 ? "s" : ""}</span> sur ${all.length} existantes` : `Pas encore dans ta collection · ${all.length} cartes existantes`;
   const tile = (c, own) => `<button class="tile ${own ? "owned" : "missing"}" data-card="${esc(c.id)}" style="border:0;background:none;padding:0;text-align:left"><span class="cardimg">${pic(c) ? `<img src="${pic(c)}" alt="${esc(c.name)}" loading="lazy" onerror="cardImgErr(this)">` : `<div class="fallback">${esc(c.name)}</div>`}</span><span class="cap"><span class="nm">${esc(setNameOf(c.id))}</span></span></button>`;
-  $("#moncards").innerHTML = (mine.length ? `<div class="h3">Tes cartes (${mine.length})</div><div class="grid smallgrid">${mine.map(c => tile(c, 1)).join("")}</div>` : "")
+  q("#moncards").innerHTML = (mine.length ? `<div class="h3">Tes cartes (${mine.length})</div><div class="grid smallgrid">${mine.map(c => tile(c, 1)).join("")}</div>` : "")
     + (others.length ? `<div class="h3">${mine.length ? "Celles qui te manquent" : "Toutes ses cartes"} (${others.length})</div><div class="grid smallgrid">${others.slice().reverse().map(c => tile(c, 0)).join("")}</div>` : "")
     + `<p class="note">Clique sur une carte pour l'ouvrir dans son extension.</p>`;
-  $("#moncards").onclick = e => {
+  q("#moncards").onclick = e => {
     const b = e.target.closest("[data-card]"); if (!b) return;
     const id = b.dataset.card, sid = id.slice(0, id.lastIndexOf("-"));
-    window.PENDING_CARD = id; close(); location.hash = "#/set/" + encodeURIComponent(sid);
+    window.PENDING_CARD = id; close(); over?.leave?.(); location.hash = "#/set/" + encodeURIComponent(sid);
   };
 }
 export function setNameOf(cardId) {

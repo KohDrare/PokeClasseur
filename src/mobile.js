@@ -50,7 +50,7 @@ if (html.classList.contains("m")) {
   /* card sheet: swipe left / right for the next / previous card */
   let t0 = null;
   document.addEventListener("touchstart", e => {
-    const sheet = e.target.closest?.("#mdl .sheet, #mdl.cpage .cp-top, #mdl.cpage .cp-stage");
+    const sheet = !e.target.closest?.("#modal-stack") && e.target.closest?.("#mdl .sheet, #mdl.cpage .cp-top, #mdl.cpage .cp-stage");
     t0 = sheet && $("#m-next") && e.touches.length === 1 && !e.target.closest("input,textarea,.versions") ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() } : null;
   }, { passive: true });
   document.addEventListener("touchend", e => {
