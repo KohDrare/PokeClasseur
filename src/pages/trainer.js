@@ -28,7 +28,7 @@ export function drawTrainerSearch(el) {
   if (!el) return;
   if (!cloud.enabled || !cloud.user) { el.hidden = true; return; }
   el.hidden = false;
-  el.innerHTML = `<h2>Dresseurs</h2>
+  el.innerHTML = `<h2>Rechercher un dresseur</h2>
     <label class="search" for="tr-q">${ICON.search}<input id="tr-q" placeholder="Rechercher un pseudo ou un nom" autocomplete="off" autocapitalize="none"></label>
     <div id="tr-list" class="tr-list">${wait()}</div>
     <div class="acts"><button class="pill ghost" data-f="following">Mes abonnements</button><button class="pill ghost" data-f="followers">Mes abonnés</button></div>`;
@@ -81,6 +81,7 @@ export async function renderTrainer(handle, opts = {}) {
       ${me ? `<div class="acts">${opts.own ? `<button class="pill ghost" id="tr-sett">Modifier mon profil</button>` : `<a class="pill ghost" href="#/profil">Modifier mon profil</a>`}<button class="pill ghost" id="tr-link">Copier le lien de mon profil</button></div>`
         : `<div class="acts"><button class="pill ${card.i_follow ? "ghost" : ""}" id="tr-follow">${card.i_follow ? "Abonné ✓" : "Suivre"}</button><button class="pill ghost" id="tr-share">Partager une extension</button><button class="pill ghost" id="tr-link">Copier le lien</button></div>`}
     </div>
+    ${opts.own ? `<div class="pf-card tr-find" id="tr-find"></div>` : ""}
     <div class="seg prtabs" id="tr-tabs"><button data-t="show">Vitrine <em>${show.length}</em></button>${canSee ? `<button data-t="col">Collection</button>` : ""}<button data-t="bind">Classeurs${(me ? myBinders().length : binders.length) ? ` <em>${me ? myBinders().length : binders.length}</em>` : ""}</button><button data-t="followers">Abonnés</button><button data-t="following">Abonnements</button>${opts.after ? `<button data-t="sett">Paramètres</button>` : ""}</div>
     <div id="tr-body"></div>
     ${opts.after ? `<div id="tr-settings" hidden>${opts.after}</div>` : ""}`;
@@ -115,6 +116,7 @@ export async function renderTrainer(handle, opts = {}) {
     const url = location.origin + location.pathname + trainerLink(card.handle);
     try { if (navigator.share) await navigator.share({ title: `@${card.handle} sur PokéClasseur`, url }); else { await navigator.clipboard.writeText(url); toast("Lien du profil copié"); } } catch { /* cancelled */ }
   };
+  if (opts.own) drawTrainerSearch($("#tr-find"));   // find other trainers right from my page
   const se = $("#tr-sett"); if (se) se.onclick = () => { select("sett"); $("#tr-tabs").scrollIntoView({ behavior: "smooth", block: "start" }); };
   if (me) return true;
   const f = $("#tr-follow");

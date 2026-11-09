@@ -48,7 +48,7 @@ export async function renderProfile() {
   if (!location.hash.startsWith("#/profil")) return;
   if (!own) $("#app").innerHTML = `<section class="profile-page"><div id="pf-head"></div>${grid}</section>`;
   mode = own ? "own" : "plain";
-  drawHead(); drawMe(); drawAcct(); drawShare(); drawCol(); drawSave(); drawSettings(); drawTrainerSearch($("#pf-people"));
+  drawHead(); drawMe(); drawAcct(); drawShare(); drawCol(); drawSave(); drawSettings(); if (mode !== "own") drawTrainerSearch($("#pf-people"));
   const onShared = () => { if (!$("#pf-share")) return removeEventListener("shared:changed", onShared); drawShare(); };
   addEventListener("shared:changed", onShared);
   const onCloud = () => {
@@ -56,7 +56,7 @@ export async function renderProfile() {
     const editing = !!$("#pf-me form.pf-edit");
     // signed in / out, pseudo chosen, profile changed: the page itself changes
     if (!editing && ((mode === "plain" && cloud.user && cloud.profile?.handle) || (mode === "own" && (!cloud.user || profSig() !== sig)))) { off(); removeEventListener("shared:changed", onShared); return renderProfile(); }
-    drawHead(); drawAcct(); if (!editing) drawMe(); if ($("#pf-people")?.hidden) drawTrainerSearch($("#pf-people"));
+    drawHead(); drawAcct(); if (!editing) drawMe(); if (mode !== "own" && $("#pf-people")?.hidden) drawTrainerSearch($("#pf-people"));
   };
   const off = () => removeEventListener("account:status", onCloud);
   addEventListener("account:status", onCloud);
