@@ -11,7 +11,7 @@ import { drawCards, refreshCounts } from "../pages/set.js";
 import { LANGS, condFactor, condOf, isFav, langOf, ownedAny, qtyOf, setFav, setLang, setQty } from "../state/collection.js";
 import { S } from "../state/shared.js";
 import { unToggleWish } from "../union/feed.js";
-import { openMon, sprite } from "../pages/pokedex.js";
+import { openArtist, openMon, sprite } from "../pages/pokedex.js";
 import { bindCardOwners, cardOwnersHTML } from "../features/sharesheet.js";
 import { openPricePage } from "../features/pricepage.js";
 import { UN } from "../union/store.js";
@@ -45,7 +45,7 @@ export function openCard(card, seq, startV, opts = {}) {
           ${c.prod ? `<dt>Obtenue avec</dt><dd>${esc(c.prod)}</dd>` : ""}
                     ${c.cat ? `<dt>Catégorie</dt><dd>${esc(c.cat)}${c.st ? " · " + esc(c.st) : ""}</dd>` : ""}
           ${c.hp ? `<dt>PV</dt><dd>${esc(c.hp)}${c.t ? " · " + esc(c.t) : ""}</dd>` : ""}
-          ${c.il ? `<dt>Illustrateur</dt><dd>${esc(c.il)}</dd>` : ""}
+          ${c.il ? `<dt>Illustrateur</dt><dd><button class="linkbtn ilink" id="m-il" title="Voir toutes ses cartes">${esc(c.il)} ›</button></dd>` : ""}
           ${c.rm ? `<dt>Marque</dt><dd>${esc(c.rm)}</dd>` : ""}
         </dl>
         <div class="h3">Ma collection</div>
@@ -70,6 +70,7 @@ export function openCard(card, seq, startV, opts = {}) {
     $("#m-prev").onclick = () => { if (idx > 0) { idx--; draw(); } };
     $("#m-next").onclick = () => { if (idx < seq.length - 1) { idx++; draw(); } };
     const dxb = $("#m-dex"); if (dxb) dxb.onclick = () => goDex(c.dx[0]);
+    const ilb = $("#m-il"); if (ilb) ilb.onclick = () => goArtist(c.il);
     const fv = $("#m-fav"); if (fv) fv.onclick = () => { setFav(c.id, !isFav(c.id)); changed = true; fv.classList.toggle("on", isFav(c.id)); fv.textContent = isFav(c.id) ? "★ Favorite" : "☆ Favori"; };
     const showFoil = () => {
       const h2 = $("#holo"); h2.querySelector(".fx")?.remove(); h2.querySelector(".ftag")?.remove();
@@ -145,7 +146,7 @@ export function openCard(card, seq, startV, opts = {}) {
           ${row("Sortie", nInfo.date ? esc(fmtDate(nInfo.date)) : "")}
           ${row("Rareté", c.ok ? `${symHTML(c.r)} ${esc(c.r || r.label)}` : "")}
           ${row("Obtenue avec", esc(c.prod || ""))}
-          ${row("Illustration", esc(c.il || ""))}
+          ${c.il ? row("Illustration", `<button class="linkbtn ilink" id="m-il">${esc(c.il)} ›</button>`) : row("Illustration", "")}
           ${row("Marque", c.rm ? `<span class="cp-rm">${esc(c.rm)}</span>` : "")}
           ${row("Prix", prices)}
         </dl>
@@ -179,6 +180,7 @@ export function openCard(card, seq, startV, opts = {}) {
     const cref = () => ({ id: c.id, name: c.name, img: c.img, set: nInfo.name || "", n: c.n, r: c.r, p: priceOf(c, pv) || c.p || 0, dx: c.dx || [] });
     $("#m-wish").onclick = () => { unToggleWish(cref()); const y = sc.scrollTop; draw(); $("#cp-scroll").scrollTop = y; };
     const dxb = $("#m-dex"); if (dxb) dxb.onclick = () => goDex(c.dx[0]);
+    const ilb = $("#m-il"); if (ilb) ilb.onclick = () => goArtist(c.il);
     const fv = $("#m-fav"); if (fv) fv.onclick = () => { setFav(c.id, !isFav(c.id)); changed = true; const y = sc.scrollTop; draw(); $("#cp-scroll").scrollTop = y; };
     $("#m-price").onclick = () => openPricePage(c, nInfo, pv, () => { changed = true; const b = $("#m-price"); if (b && priceOf(c, pv)) b.lastChild.textContent = ` Prix · ${eur(priceOf(c, pv) * condFactor(c.id))}`; });
     const showFoil = () => {
@@ -213,6 +215,8 @@ export function openCard(card, seq, startV, opts = {}) {
   // the Pokémon's page opens on top of the card: closing it brings the card back
   /* shared extension: who owns each version (redrawn after a quantity change) */
   const paintOwners = (c, first) => { const box = $("#m-owners"); if (!box) return; box.innerHTML = cardOwnersHTML(c, variantsOf(c)); bindCardOwners(c, () => { changed = true; paintOwners(c); }); if (!first) changed = true; };
+  // an illustrator's other cards, on top of this one (closing comes back to the card)
+  const goArtist = name => openArtist(name, { leave: () => close(true), back: () => openCard(seq[idx], seq, pv, opts) });
   const goDex = n => openMon(n, { leave: () => close(true), back: () => openCard(seq[idx], seq, pv, opts) });
   /* language buttons of the copy you own */
   const bindLang = redraw => { const r = $("#m-lang"); if (r) r.onclick = e => { const b = e.target.closest("[data-l]"); if (!b) return; setLang(seq[idx].id, b.dataset.l); changed = true; redraw(); }; };

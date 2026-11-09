@@ -125,33 +125,60 @@ export async function renderPokedex(regionId) {
 
 export const MON_CARDS = new Map();
 /* the Pokémon's page. `over`: opened from a card, on top of it; closing it goes back to that card */
-export async function openMon(n, over = null, scrollTo = 0) {
+export function openMon(n, over = null, scrollTo = 0) {
+  const name = DEX_NAMES[n - 1], reg = regionOf(n);
+  return openCardsSheet({
+    key: "mon:" + n, label: name, cls: "monsheet",
+    hero: `<div class="monhero"><img src="${artwork(n)}" alt="${esc(name)}"><div><div class="mno">${dexNo(n)}${reg ? " · " + reg.name : ""}</div><h2>${esc(name)}</h2><div id="monstatus" class="note"></div></div></div>`,
+    url: `${API}/cards?dexId=eq:${n}`,
+    status: (mine, all) => mine ? `<span class="okchip">${ICON.check} Attrapé · ${mine} carte${mine > 1 ? "s" : ""}</span> sur ${all} existantes` : `Pas encore dans ta collection · ${all} cartes existantes`,
+    reopen: (o, y) => openMon(n, o, y)
+  }, over, scrollTo);
+}
+/* every card drawn by an illustrator (from a card's "Illustrateur"), newest first */
+export function openArtist(name, over = null, scrollTo = 0) {
+  return openCardsSheet({
+    key: "il:" + name, label: name, cls: "monsheet artistsheet", byDate: true,
+    hero: `<div class="monhero"><div class="arthero"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 0 0 0 18c1.1 0 1.6-.8 1.6-1.6 0-.9-.6-1.3-.6-2.1 0-.9.7-1.5 1.6-1.5H17a4 4 0 0 0 4-4C21 6.8 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10" cy="7" r="1.2"/><circle cx="14.5" cy="7" r="1.2"/><circle cx="17" cy="11" r="1.2"/></svg></div><div><div class="mno">Illustrateur</div><h2>${esc(name)}</h2><div id="monstatus" class="note"></div></div></div>`,
+    url: `${API}/cards?illustrator=eq:${encodeURIComponent(name)}`,
+    status: (mine, all) => `${all} carte${all > 1 ? "s" : ""} illustrée${all > 1 ? "s" : ""}${mine ? ` · <span class="okchip">${ICON.check} ${mine} dans ta collection</span>` : ""}`,
+    reopen: (o, y) => openArtist(name, o, y)
+  }, over, scrollTo);
+}
+/* the sheet listing cards (a Pokémon's, an illustrator's). over: opened from a card, on top of it */
+async function openCardsSheet(spec, over, scrollTo) {
   let root = $("#modal-root");
   if (over) { root = document.getElementById("modal-stack") || document.body.appendChild(Object.assign(document.createElement("div"), { id: "modal-stack" })); }
   const q = sel => root.querySelector(sel);
-  const name = DEX_NAMES[n - 1], reg = regionOf(n);
-  root.innerHTML = `<div class="modal" id="mdl"><div class="sheet monsheet" role="dialog" aria-modal="true" aria-label="${esc(name)}">
+  root.innerHTML = `<div class="modal" id="mdl"><div class="sheet ${spec.cls}" role="dialog" aria-modal="true" aria-label="${esc(spec.label)}">
     <button class="iconbtn close" id="m-close" aria-label="Fermer">${ICON.x}</button>
-    <div class="monhero"><img src="${artwork(n)}" alt="${esc(name)}"><div><div class="mno">${dexNo(n)}${reg ? " · " + reg.name : ""}</div><h2>${esc(name)}</h2><div id="monstatus" class="note"></div></div></div>
-    <div id="moncards"><div class="empty-state" style="padding:30px 0"><b>Recherche de ses cartes…</b></div></div>
+    ${spec.hero}
+    <div id="moncards"><div class="empty-state" style="padding:30px 0"><b>Recherche des cartes…</b></div></div>
   </div></div>`;
   const close = () => { root.innerHTML = ""; if (!over) document.body.style.overflow = ""; document.removeEventListener("keydown", key, true); };
   const key = e => { if (e.key === "Escape") { e.stopImmediatePropagation(); close(); } };
   document.addEventListener("keydown", key, true); document.body.style.overflow = "hidden";
   q("#m-close").onclick = close; q("#mdl").onclick = e => { if (e.target.id === "mdl") close(); };
-  let all = MON_CARDS.get(n);
-  try { if (!all) { all = (await getJSON(`${API}/cards?dexId=eq:${n}`)) || []; MON_CARDS.set(n, all); } }
-  catch { if (q("#moncards")) q("#moncards").innerHTML = `<div class="empty-state"><b>Impossible de charger ses cartes</b>Vérifie ta connexion.</div>`; return; }
+  let all = MON_CARDS.get(spec.key);
+  try { if (!all) { all = (await getJSON(spec.url)) || []; MON_CARDS.set(spec.key, all); } }
+  catch { if (q("#moncards")) q("#moncards").innerHTML = `<div class="empty-state"><b>Impossible de charger les cartes</b>Vérifie ta connexion.</div>`; return; }
   if (!q("#moncards")) return;
   if (!S.SERIES) { try { S.SERIES = await loadSeries(); } catch {} }
   if (!q("#moncards")) return;
   const pic = c => c.image ? `${c.image}/low.webp` : img(scanBase(c.id.slice(0, c.id.lastIndexOf("-")), c.localId));
+  if (spec.byDate) {
+    // newest extension first (the series list starts with the newest), then card number
+    const rank = new Map((S.SERIES || []).flatMap(x => x.sets).map((t, i) => [t.id, i]));
+    const r = c => rank.get(c.id.slice(0, c.id.lastIndexOf("-"))) ?? 1e9;
+    all = all.filter(c => c.image).sort((x, y) => r(x) - r(y) || (parseInt(x.localId) || 0) - (parseInt(y.localId) || 0));
+  }
   const mine = all.filter(c => ownedAny(c.id)), others = all.filter(c => !ownedAny(c.id) && pic(c));
-  q("#monstatus").innerHTML = mine.length ? `<span class="okchip">${ICON.check} Attrapé · ${mine.length} carte${mine.length > 1 ? "s" : ""}</span> sur ${all.length} existantes` : `Pas encore dans ta collection · ${all.length} cartes existantes`;
-  const tile = (c, own) => `<button class="tile ${own ? "owned" : "missing"}" data-card="${esc(c.id)}" style="border:0;background:none;padding:0;text-align:left"><span class="cardimg">${pic(c) ? `<img src="${pic(c)}" alt="${esc(c.name)}" loading="lazy" onerror="cardImgErr(this)">` : `<div class="fallback">${esc(c.name)}</div>`}</span><span class="cap"><span class="nm">${esc(setNameOf(c.id))}</span></span></button>`;
+  q("#monstatus").innerHTML = spec.status(mine.length, all.length);
+  const tile = (c, own) => `<button class="tile ${own ? "owned" : "missing"}" data-card="${esc(c.id)}" style="border:0;background:none;padding:0;text-align:left"><span class="cardimg">${pic(c) ? `<img src="${pic(c)}" alt="${esc(c.name)}" loading="lazy" onerror="cardImgErr(this)">` : `<div class="fallback">${esc(c.name)}</div>`}</span><span class="cap"><span class="nm">${esc(spec.byDate ? c.name : setNameOf(c.id))}</span>${spec.byDate ? `<span class="pr">${esc(setNameOf(c.id))}</span>` : ""}</span></button>`;
+  const oth = spec.byDate ? others : others.slice().reverse();
   q("#moncards").innerHTML = (mine.length ? `<div class="h3">Tes cartes (${mine.length})</div><div class="grid smallgrid">${mine.map(c => tile(c, 1)).join("")}</div>` : "")
-    + (others.length ? `<div class="h3">${mine.length ? "Celles qui te manquent" : "Toutes ses cartes"} (${others.length})</div><div class="grid smallgrid">${others.slice().reverse().map(c => tile(c, 0)).join("")}</div>` : "")
-    + `<p class="note">Clique sur une carte pour l'ouvrir dans son extension.</p>`;
+    + (oth.length ? `<div class="h3">${mine.length ? "Celles qui te manquent" : "Toutes les cartes"} (${oth.length})</div><div class="grid smallgrid">${oth.map(c => tile(c, 0)).join("")}</div>` : "")
+    + `<p class="note">Touche une carte pour l'ouvrir ; en la fermant, tu reviens ici.</p>`;
   if (scrollTo) { const sh = q(".sheet"); if (sh) sh.scrollTop = scrollTo; }
   // a card opens on top of this page; closing it comes back here (and, opened from a card, to that card after)
   q("#moncards").onclick = async e => {
@@ -166,7 +193,7 @@ export async function openMon(n, over = null, scrollTo = 0) {
     close(); over?.leave?.();
     const { openCard } = await import("../components/card-modal.js");
     openCard(card, set.cards.filter(c => !c.linked).map(c => { c._info = set.info; return c; }), undefined, {
-      onClose: () => { const under = over?.back?.(); openMon(n, under ? { leave: () => under.close(true), back: over.back } : null, y); }
+      onClose: () => { const under = over?.back?.(); spec.reopen(under ? { leave: () => under.close(true), back: over.back } : null, y); }
     });
   };
 }

@@ -536,3 +536,7 @@ html.m .pf-card{padding:14px}
 .trpub.on i::after{transform:translateX(12px)}
 #trsort .sdir{font-style:normal;font-weight:800;margin-left:auto}
 .tr-find{margin-top:16px}
+.ilink{font:inherit;font-weight:700;color:var(--navy);padding:0;text-align:left}
+html[data-theme="dark"] .ilink{color:inherit;text-decoration:underline}
+.arthero{width:84px;height:84px;border-radius:50%;background:var(--surface-2);display:grid;place-items:center;font-size:34px;flex:none}
+.arthero svg{width:38px;height:38px}
