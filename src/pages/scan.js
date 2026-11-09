@@ -60,7 +60,7 @@ export async function renderScan() {
   setNav("scan");
   const app = $("#app");
   app.innerHTML = `<div class="wrap scanpage">
-    <div class="scanhead"><h1>Scanner une carte</h1><p class="note">Place la carte dans le cadre : l'app la reconnaît à son image, ou à son code et son numéro (par ex. « DLR 084/103 »). Choisis l'extension en dessous pour aller encore plus vite.</p></div>
+    <div class="scanhead"><h1>Scanner une carte</h1><p class="note">Place la carte dans le cadre : l'app la reconnaît à son image, ou à son code et son numéro (par ex. « DLR 084/103 »). L'extension est trouvée toute seule.</p></div>
     <div class="scanbox" id="scanbox">
       <video id="scanvid" playsinline muted autoplay></video>
       <div class="scanframe" id="scanframe"><span class="zone"></span></div>
@@ -68,7 +68,6 @@ export async function renderScan() {
       <button class="iconbtn torch" id="scantorch" hidden aria-label="Lampe">${BOLT}</button>
     </div>
     <div class="scanbar">
-      <label class="scanset">Extension <select id="scanset"></select></label>
       <form class="manual" id="scanmanual"><input id="scanq" placeholder="Ou tape le code et le numéro : DLR 084" autocomplete="off" autocapitalize="characters"><button class="pill">Chercher</button></form>
       <span class="note" id="scancount"></span>
     </div>
@@ -80,7 +79,6 @@ export async function renderScan() {
 
   import("../scan/ocr.js").then(m => m.getReaders()).catch(() => {});   // start the readers now, while the camera opens
   if (!S.SERIES?.length) { try { S.SERIES = await loadSeries(); } catch { /* the manual search will say so */ } }
-  fillSetPicker();
   if (!navigator.mediaDevices?.getUserMedia) { state("Caméra indisponible ici. Tu peux taper le code et le numéro ci-dessous.", "bad"); return; }
   try {
     stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 2560 }, height: { ideal: 1440 } }, audio: false });
@@ -99,25 +97,22 @@ export async function renderScan() {
   startPictureLoop();
 }
 
-/* which extensions the picture matcher compares with: the one you chose, or (auto) the last one scanned,
-   the newest one, and any whose code the text reader saw */
-const SETKEY = "pc-scanset";
-function fillSetPicker() {
-  const sel = $("#scanset"); if (!sel) return;
-  const cur = LS.get(SETKEY, "auto");
-  sel.innerHTML = `<option value="auto">Automatique</option>` + (S.SERIES || []).map(se => `<optgroup label="${esc(se.name)}">${[...se.sets].reverse().map(t => `<option value="${esc(t.id)}" ${t.id === cur ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</optgroup>`).join("");
-  sel.value = [...sel.options].some(o => o.value === cur) ? cur : "auto";
-  sel.onchange = () => { LS.set(SETKEY, sel.value); prepare(candidateSets()); showPictureState(); };
+/* which extensions the picture matcher compares with, found by itself: the last one scanned, the newest one,
+   the ones you added cards from lately, and any whose code the text reader saw on the card */
+function recentOwnedSets() {
+  const out = [];
+  for (const e of Object.values(S.COL.cards || {}).filter(e => e.t).sort((a, b) => b.t - a.t)) { if (!out.includes(e.s)) out.push(e.s); if (out.length >= 2) break; }
+  return out;
 }
 function newestSet() {
   const all = (S.SERIES || []).flatMap(se => se.sets).filter(t => (SETMETA[t.id]?.d || "") <= new Date().toISOString().slice(0, 10));
   return all.sort((a, b) => (SETMETA[b.id]?.d || "").localeCompare(SETMETA[a.id]?.d || ""))[0]?.id;
 }
 function candidateSets() {
-  const pick = LS.get(SETKEY, "auto");
-  if (pick !== "auto") return [pick];
-  const ids = [LS.get("pc-scanlast", ""), newestSet(), ...[...ocrSets.entries()].sort((a, b) => b[1] - a[1]).map(x => x[0])];
-  return [...new Set(ids.filter(Boolean))].slice(0, 4);
+  // a set whose code was just read on the card comes first
+  const seen = [...ocrSets.entries()].sort((a, b) => b[1] - a[1]).map(x => x[0]);
+  const ids = [...seen.slice(0, 2), LS.get("pc-scanlast", ""), newestSet(), ...recentOwnedSets(), ...seen.slice(2)];
+  return [...new Set(ids.filter(Boolean))].slice(0, 5);
 }
 const ready = new Map();   // setId → prints
 const progress = new Map();   // setId → % while preparing, or "err"
@@ -127,7 +122,7 @@ function showPictureState() {
   el.innerHTML = ids.length ? `<b>Reconnaissance par l'image</b> ${ids.map(id => {
     const p = ready.has(id) ? (ready.get(id).length ? "✓" : "indisponible") : progress.get(id) === "err" ? "indisponible" : `${progress.get(id) || 0} %`;
     return `<span class="${ready.get(id)?.length ? "ok" : ""}">${esc(setName(id))} ${p}</span>`;
-  }).join("")}` : `<b>Reconnaissance par l'image</b> <span>choisis l'extension ci-dessus</span>`;
+  }).join("")}` : `<b>Reconnaissance par l'image</b> <span>recherche de l'extension…</span>`;
 }
 function prepare(ids) {
   // every extension at the same time: the one you need is never stuck behind another
