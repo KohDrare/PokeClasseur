@@ -46,6 +46,7 @@ function table(name) {
   const q = { filters: [] };
   const api = {
     select: () => api,
+    eq: () => api,   // user_id filter: the fake holds one user's rows
     range: async (a, b) => ({ data: rows().slice(a, b + 1).map(r => ({ ...r })), error: null }),
     upsert: async (list, { onConflict }) => {
       const keys = onConflict.split(",").filter(k => k !== "user_id");

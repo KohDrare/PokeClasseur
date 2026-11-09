@@ -1,4 +1,4 @@
--- PokéClasseur : base complète (0001 + 0002 + 0003 + 0004) en une fois. Supabase → SQL Editor → coller → Run.
+-- PokéClasseur : base complète (0001 → 0005) en une fois. Supabase → SQL Editor → coller → Run.
 -- Peut être relancé sans risque : ne supprime aucune donnée.
 
 -- ===== 0001_init.sql =====
@@ -269,5 +269,18 @@ create policy "shared_members_delete" on public.shared_members for delete to aut
 drop policy if exists "shared_items_all" on public.shared_items;
 create policy "shared_items_all" on public.shared_items for all to authenticated
   using (public.is_shared_member(shared_id)) with check (public.is_shared_member(shared_id));
+
+notify pgrst, 'reload schema';
+
+-- ===== 0005_public_collection.sql =====
+-- PokéClasseur — phase 5 : voir la collection des autres dresseurs.
+-- Quand un dresseur active « Collection visible par les autres » (profiles.show_collection),
+-- les autres comptes connectés peuvent LIRE ses cartes (jamais les modifier).
+-- À exécuter dans Supabase : SQL Editor → coller ce fichier → Run. Peut être relancé sans risque.
+
+drop policy if exists "collection_select_public" on public.collection_items;
+create policy "collection_select_public" on public.collection_items
+  for select to authenticated
+  using (exists (select 1 from public.profiles p where p.id = collection_items.user_id and p.show_collection));
 
 notify pgrst, 'reload schema';

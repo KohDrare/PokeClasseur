@@ -22,7 +22,8 @@ function setStatus(status, error = "") { Object.assign(syncState, { status, erro
 async function fetchAll(table, columns) {
   const out = [];
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await supabase.from(table).select(columns).range(from, from + 999);
+    // only my rows: public collections of other trainers are readable too (migration 0005)
+    const { data, error } = await supabase.from(table).select(columns).eq("user_id", userId).range(from, from + 999);
     if (error) throw error;
     out.push(...data);
     if (data.length < 1000) return out;

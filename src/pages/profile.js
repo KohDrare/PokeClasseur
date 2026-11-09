@@ -15,19 +15,20 @@ import { VARIANT_LABEL, eur, priceOf } from "../features/variants.js";
 import { askMotion } from "../features/tilt.js";
 import { SH, acceptInvite, activeMembers, declineInvite } from "../cloud/shared.js";
 import { avatarImg } from "../features/sharesheet.js";
-import { drawTrainerSearch, trainerLink } from "./trainer.js";
+import { drawTrainerSearch, renderTrainer, trainerLink } from "./trainer.js";
 import { openSync } from "../features/sync.js";
 
 const AVATARS = [25, 133, 6, 9, 3, 150, 151, 448, 282, 197, 196, 94, 143, 249, 384, 445, 658, 778, 887, 1007, 1008, 906, 909, 912, 491, 700];
 let acctMod = null;
 const account = () => acctMod ||= import("../cloud/account.js");
 
+/* signed in with a pseudo: the tab opens on my public page (vitrine, collection, followers…) with my settings
+   below; otherwise the settings page alone */
+let mode = "plain", sig = "";
+const profSig = () => JSON.stringify(cloud.profile || null);
 export async function renderProfile() {
   setNav("profil");
-  const main = $("#app");
-  main.innerHTML = `<section class="profile-page">
-    <div id="pf-head"></div>
-    <div class="pf-grid">
+  const grid = `<div class="pf-grid">
       <div class="pf-col">
         <div class="pf-card" id="pf-me"></div>
         <div class="pf-card" id="pf-people" hidden></div>
@@ -40,12 +41,23 @@ export async function renderProfile() {
         <div class="pf-card" id="pf-set"></div>
       </div>
     </div>
-    <p class="note pf-ver">PokéClasseur · version du ${new Date(__BUILD__).toLocaleString("fr-BE", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}</p>
-  </section>`;
+    <p class="note pf-ver">PokéClasseur · version du ${new Date(__BUILD__).toLocaleString("fr-BE", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}</p>`;
+  sig = profSig();
+  const handle = cloud.user && cloud.profile?.handle;
+  const own = handle ? await renderTrainer(handle, { own: true, after: grid }) : false;
+  if (!location.hash.startsWith("#/profil")) return;
+  if (!own) $("#app").innerHTML = `<section class="profile-page"><div id="pf-head"></div>${grid}</section>`;
+  mode = own ? "own" : "plain";
   drawHead(); drawMe(); drawAcct(); drawShare(); drawCol(); drawSave(); drawSettings(); drawTrainerSearch($("#pf-people"));
   const onShared = () => { if (!$("#pf-share")) return removeEventListener("shared:changed", onShared); drawShare(); };
   addEventListener("shared:changed", onShared);
-  const onCloud = () => { if (!$("#pf-head")) return off(); drawHead(); drawAcct(); if (!$("#pf-me form.pf-edit")) drawMe(); if ($("#pf-people")?.hidden) drawTrainerSearch($("#pf-people")); };
+  const onCloud = () => {
+    if (!$("#pf-me")) return off();
+    const editing = !!$("#pf-me form.pf-edit");
+    // signed in / out, pseudo chosen, profile changed: the page itself changes
+    if (!editing && ((mode === "plain" && cloud.user && cloud.profile?.handle) || (mode === "own" && (!cloud.user || profSig() !== sig)))) { off(); removeEventListener("shared:changed", onShared); return renderProfile(); }
+    drawHead(); drawAcct(); if (!editing) drawMe(); if ($("#pf-people")?.hidden) drawTrainerSearch($("#pf-people"));
+  };
   const off = () => removeEventListener("account:status", onCloud);
   addEventListener("account:status", onCloud);
 }
@@ -82,7 +94,7 @@ function drawMe(editing = false) {
     el.innerHTML = `<h2>Mon profil de dresseur</h2>
       ${p.handle ? `<dl class="pf-dl"><dt>Pseudo</dt><dd>${esc(p.name || "–")}</dd><dt>Identifiant</dt><dd>@${esc(p.handle)}</dd>${p.city ? `<dt>Ville</dt><dd>${esc(p.city)}</dd>` : ""}${p.bio ? `<dt>Bio</dt><dd>${esc(p.bio)}</dd>` : ""}</dl>`
         : `<p class="note">${p.error ? esc(p.error) : "Choisis un pseudo et un avatar : ils serviront plus tard pour les échanges entre dresseurs."}</p>`}
-      <div class="acts"><button class="pill ${p.handle ? "ghost" : ""}" id="pf-edit">${p.handle ? "Modifier" : "Créer mon profil"}</button>${p.handle ? `<button class="pill ghost" id="pf-show">Choisir ma vitrine</button><a class="pill ghost" href="${trainerLink(p.handle)}">Voir mon profil public</a>` : ""}</div>
+      <div class="acts"><button class="pill ${p.handle ? "ghost" : ""}" id="pf-edit">${p.handle ? "Modifier" : "Créer mon profil"}</button>${p.handle ? `<button class="pill ghost" id="pf-show">Choisir ma vitrine</button>${mode === "own" ? "" : `<a class="pill ghost" href="${trainerLink(p.handle)}">Voir mon profil public</a>`}` : ""}</div>
       ${p.handle ? `<div class="pf-rows" style="margin-top:12px"><button class="pf-row pf-sw ${p.show_collection ? "on" : ""}" id="pf-pub" role="switch" aria-checked="${!!p.show_collection}"><span><b>Collection visible par les autres</b><small>Ton nombre de cartes, d'extensions et de Pokémon sur ton profil public</small></span><i></i></button></div>` : ""}`;
     $("#pf-edit").onclick = () => drawMe(true);
     const pub = $("#pf-pub");
@@ -122,7 +134,7 @@ function drawMe(editing = false) {
     try {
       if (await handleTaken(handle)) { err.textContent = "Cet identifiant est déjà pris."; ok.disabled = false; return; }
       await saveMyProfile({ handle, name: $("#pf-name").value.trim(), city: $("#pf-city").value.trim() || null, bio: $("#pf-bio").value.trim() || null, avatar: av });
-      toast("Profil enregistré"); drawMe(); drawHead();
+      toast("Profil enregistré"); if (mode === "own") return renderProfile(); drawMe(); drawHead();
     } catch (x) { err.textContent = x.message || "Enregistrement impossible"; ok.disabled = false; }
   };
 }

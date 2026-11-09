@@ -521,3 +521,8 @@ html.m .pf-card{padding:14px}
 .profile-page>.crumb{display:inline-flex;margin-bottom:12px}
 @media (max-width:760px){.tr-stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .pf-card.tr-head{display:flex;flex-direction:column;align-items:stretch}.tr-head .acts{margin-top:14px}
+.pf-sett-h{margin:34px 0 14px;font-size:22px}
+.tr-colhead{display:grid;grid-template-columns:minmax(260px,1fr) 2.2fr;gap:16px;margin-bottom:16px}
+.tr-colhead .valcard,.tr-colhead .colpeek{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;box-shadow:var(--shadow)}
+.tr-sort{margin:0 0 14px}
+@media (max-width:900px){.tr-colhead{grid-template-columns:1fr}}
