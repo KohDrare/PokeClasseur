@@ -11,7 +11,14 @@ import { rarity, symHTML } from "./rarity.js";
 
 const KEY = "pc-binders";
 export const myBinders = () => LS.get(KEY, []);
-const saveAll = list => LS.set(KEY, list);
+const saveAll = list => { LS.set(KEY, list); dispatchEvent(new CustomEvent("binders:changed")); };
+/* a binder shown on my public profile ("Classeurs" tab) or not */
+export function setBinderPublic(id, on) {
+  const list = myBinders(), b = list.find(x => x.id === id); if (!b) return;
+  if (on) b.pub = 1; else delete b.pub;
+  saveAll(list);
+}
+export const publicBinders = () => myBinders().filter(b => b.pub).map(({ id, name, color, mode, cards }) => ({ id, name, color, mode, cards }));
 const snap = (c, info) => ({ id: c.id, setId: c.setId, n: c.n, name: c.name, img: c.img, r: c.r, label: numLabel(c, info) });
 
 /* the row of binders in "Ma collection": "Nouveau" + one tile per binder */

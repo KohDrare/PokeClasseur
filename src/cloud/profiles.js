@@ -38,7 +38,7 @@ export async function handleTaken(handle) {
 
 /* saves the editable fields of my profile; returns the saved row */
 export async function saveMyProfile(fields) {
-  const allowed = ["handle", "name", "avatar", "city", "bio", "showcase", "show_collection"];
+  const allowed = ["handle", "name", "avatar", "city", "bio", "showcase", "show_collection", "binders"];
   const patch = Object.fromEntries(Object.entries(fields).filter(([k]) => allowed.includes(k)));
   const { data, error } = await db().from("profiles").update(patch).eq("id", cloud.user.id).select("*").single();
   if (error) throw error;

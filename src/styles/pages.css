@@ -526,3 +526,12 @@ html.m .pf-card{padding:14px}
 .tr-colhead .valcard,.tr-colhead .colpeek{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;box-shadow:var(--shadow)}
 .tr-sort{margin:0 0 14px}
 @media (max-width:900px){.tr-colhead{grid-template-columns:1fr}}
+.trshelf{display:flex;gap:16px;overflow-x:auto;padding:4px 2px 10px}
+.trb{display:flex;flex-direction:column;align-items:center;gap:8px}
+.trpub{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 10px 0 6px;border-radius:15px;border:1px solid var(--line);background:var(--surface);color:var(--muted);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+.trpub i{width:30px;height:18px;border-radius:9px;background:var(--line);position:relative}
+.trpub i::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .2s}
+.trpub.on{color:var(--ok);border-color:var(--ok)}
+.trpub.on i{background:var(--ok)}
+.trpub.on i::after{transform:translateX(12px)}
+#trsort .sdir{font-style:normal;font-weight:800;margin-left:auto}

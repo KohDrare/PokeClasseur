@@ -1,7 +1,10 @@
 /* Other trainers, from the "Profil" tab: search by pseudo, a trainer's public page (#/dresseur/<pseudo>),
    follow, invite to share an extension, followers / following lists. The data side is cloud/profiles.js
    (tables profiles and follows, function profile_card: supabase/migrations/0002). */
-import { getProfileCard, listFollows, profileError, searchProfiles, setFollow } from "../cloud/profiles.js";
+import { getProfileCard, listFollows, profileError, saveMyProfile, searchProfiles, setFollow } from "../cloud/profiles.js";
+import { myBinders, publicBinders, setBinderPublic } from "../features/mybinders.js";
+import { openBinderView } from "../features/binderview.js";
+import { SORTS, sortItems } from "../features/colsort.js";
 import { cloud, cloudReady, hasProfile } from "../cloud/session.js";
 import { SH, shareSet } from "../cloud/shared.js";
 import { img, loadSeries, loadSet, peekSet, pool } from "../data/tcgdex.js";
@@ -64,7 +67,7 @@ export async function renderTrainer(handle, opts = {}) {
   if (!page.isConnected) return false;
   if (!S.SERIES) { try { S.SERIES = await loadSeries(); } catch { /* offline */ } }
   const me = card.id === cloud.user?.id;
-  const st = card.stats, show = Array.isArray(card.showcase) ? card.showcase : [];
+  const st = card.stats, show = Array.isArray(card.showcase) ? card.showcase : [], binders = Array.isArray(card.binders) ? card.binders : [];
   const canSee = me || !!st;
   const box = (n, l, t) => t ? `<button data-t="${t}"><b>${n}</b><small>${l}</small></button>` : `<div><b>${n}</b><small>${l}</small></div>`;
   page.innerHTML = `<div class="pf-card tr-head">
@@ -75,12 +78,12 @@ export async function renderTrainer(handle, opts = {}) {
         ${box(`<span id="tr-nf">${card.followers}</span>`, `abonné${card.followers > 1 ? "s" : ""}`, "followers")}
         ${box(card.following, `abonnement${card.following > 1 ? "s" : ""}`, "following")}
       </div>
-      ${me ? `<div class="acts">${opts.own ? `<button class="pill ghost" id="tr-sett">Paramètres</button>` : `<a class="pill ghost" href="#/profil">Modifier mon profil</a>`}<button class="pill ghost" id="tr-link">Copier le lien de mon profil</button></div>`
+      ${me ? `<div class="acts">${opts.own ? `<button class="pill ghost" id="tr-sett">Modifier mon profil</button>` : `<a class="pill ghost" href="#/profil">Modifier mon profil</a>`}<button class="pill ghost" id="tr-link">Copier le lien de mon profil</button></div>`
         : `<div class="acts"><button class="pill ${card.i_follow ? "ghost" : ""}" id="tr-follow">${card.i_follow ? "Abonné ✓" : "Suivre"}</button><button class="pill ghost" id="tr-share">Partager une extension</button><button class="pill ghost" id="tr-link">Copier le lien</button></div>`}
     </div>
-    <div class="seg prtabs" id="tr-tabs"><button data-t="show">Vitrine <em>${show.length}</em></button>${canSee ? `<button data-t="col">Collection</button>` : ""}<button data-t="followers">Abonnés</button><button data-t="following">Abonnements</button></div>
+    <div class="seg prtabs" id="tr-tabs"><button data-t="show">Vitrine <em>${show.length}</em></button>${canSee ? `<button data-t="col">Collection</button>` : ""}<button data-t="bind">Classeurs${(me ? myBinders().length : binders.length) ? ` <em>${me ? myBinders().length : binders.length}</em>` : ""}</button><button data-t="followers">Abonnés</button><button data-t="following">Abonnements</button>${opts.after ? `<button data-t="sett">Paramètres</button>` : ""}</div>
     <div id="tr-body"></div>
-    ${opts.after ? `<h2 class="pf-sett-h" id="pf-sett">Paramètres</h2>${opts.after}` : ""}`;
+    ${opts.after ? `<div id="tr-settings" hidden>${opts.after}</div>` : ""}`;
   const body = $("#tr-body");
   const tabs = {
     show: () => {
@@ -88,6 +91,8 @@ export async function renderTrainer(handle, opts = {}) {
         : `<div class="empty-state"><b>Vitrine vide</b>${me ? "Choisis tes plus belles cartes avec « Choisir ma vitrine » dans les paramètres." : `@${esc(card.handle)} n'a pas encore choisi de cartes à montrer.`}</div>`;
     },
     col: () => showCollection(body, card, me),
+    bind: () => showBinders(body, card, me, binders),
+    sett: () => { body.innerHTML = ""; },
     followers: () => people("followers"), following: () => people("following")
   };
   const people = async dir => {
@@ -95,15 +100,22 @@ export async function renderTrainer(handle, opts = {}) {
     try { const l = await listFollows(card.id, dir); body.innerHTML = l.length ? `<div class="pf-card">${l.map(personRow).join("")}</div>` : `<div class="empty-state"><b>${dir === "followers" ? "Aucun abonné pour l'instant" : "Aucun abonnement pour l'instant"}</b></div>`; }
     catch (e) { body.innerHTML = `<div class="empty-state"><b>Liste indisponible</b>${esc(profileError(e))}</div>`; }
   };
-  const select = t => { [...$("#tr-tabs").children].forEach(x => x.classList.toggle("on", x.dataset.t === t)); tabs[t](); };
-  select(opts.tab && tabs[opts.tab] ? opts.tab : "show");
+  const select = t => {
+    if (!tabs[t]) t = "show";
+    [...$("#tr-tabs").children].forEach(x => x.classList.toggle("on", x.dataset.t === t));
+    const st = $("#tr-settings"); if (st) st.hidden = t !== "sett";
+    body.hidden = t === "sett";
+    if (me) ownTab = t;
+    tabs[t]();
+  };
+  select(opts.tab || (opts.own ? ownTab : "show"));
   $("#tr-tabs").onclick = e => { const b = e.target.closest("button"); if (b) select(b.dataset.t); };
   page.querySelectorAll(".tr-stats [data-t]").forEach(b => b.onclick = () => { select(b.dataset.t); $("#tr-tabs").scrollIntoView({ behavior: "smooth", block: "start" }); });
   $("#tr-link").onclick = async () => {
     const url = location.origin + location.pathname + trainerLink(card.handle);
     try { if (navigator.share) await navigator.share({ title: `@${card.handle} sur PokéClasseur`, url }); else { await navigator.clipboard.writeText(url); toast("Lien du profil copié"); } } catch { /* cancelled */ }
   };
-  const se = $("#tr-sett"); if (se) se.onclick = () => $("#pf-sett")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const se = $("#tr-sett"); if (se) se.onclick = () => { select("sett"); $("#tr-tabs").scrollIntoView({ behavior: "smooth", block: "start" }); };
   if (me) return true;
   const f = $("#tr-follow");
   f.onclick = async () => {
@@ -117,9 +129,41 @@ export async function renderTrainer(handle, opts = {}) {
   return true;
 }
 
+let ownTab = "show";   // the tab of my own profile, kept when the page redraws
+
+/* ---------- binders: mine (with "visible on my profile") or the ones a trainer shows ---------- */
+function showBinders(body, card, me, theirs) {
+  const list = me ? myBinders() : theirs;
+  if (!list.length) { body.innerHTML = `<div class="empty-state"><b>Aucun classeur${me ? "" : " visible"}</b>${me ? "Crée tes classeurs dans « Ma collection », puis choisis ici ceux à montrer sur ton profil." : `@${esc(card.handle)} ne montre pas encore de classeur.`}</div>`; return; }
+  body.innerHTML = `<div class="pf-card"><div class="shelf trshelf">${list.map((b, i) => `<div class="trb"><button class="btile" data-b="${i}" style="--bc:${b.color}">
+      <span class="bcover">${b.cards[0] ? `<span class="bmain">${imgTag(b.cards[0], "low")}</span>` : ""}<span class="bmini">${b.cards.slice(1, 4).map(c => `<span>${imgTag(c, "low")}</span>`).join("")}</span></span>
+      <b>${esc(b.name)}</b><small>${b.cards.length} carte${b.cards.length > 1 ? "s" : ""}</small></button>
+      ${me ? `<button class="trpub ${b.pub ? "on" : ""}" data-pub="${esc(b.id)}" role="switch" aria-checked="${!!b.pub}"><i></i>${b.pub ? "Sur mon profil" : "Privé"}</button>` : ""}</div>`).join("")}</div>
+      ${me ? `<p class="note">« Sur mon profil » : le classeur est visible par les autres dresseurs dans cet onglet.</p>` : ""}</div>`;
+  body.onclick = e => {
+    const pb = e.target.closest("[data-pub]");
+    if (pb) { const b = myBinders().find(x => x.id === pb.dataset.pub); setBinderPublic(pb.dataset.pub, !b?.pub); showBinders(body, card, me, theirs); toast(b?.pub ? "Classeur privé" : "Classeur visible sur ton profil"); return; }
+    const t = e.target.closest("[data-b]"); if (!t) return;
+    const b = list[+t.dataset.b];
+    openBinderView({ title: b.name, color: b.color, mode: b.mode || "pages", slots: b.cards.map(c => ({ c, owned: true })), onOpen: sl => sl.c.img && openViewer(sl.c) });
+  };
+}
+/* my binders shown on my profile follow every change of them */
+let pubTimer = null;
+addEventListener("binders:changed", () => {
+  clearTimeout(pubTimer);
+  pubTimer = setTimeout(async () => {
+    if (!cloud.user || !cloud.profile?.handle) return;
+    const next = publicBinders();
+    if (JSON.stringify(next) === JSON.stringify(cloud.profile.binders || [])) return;
+    try { await saveMyProfile({ binders: next }); }
+    catch (e) { toast(/binders/.test(e.message || "") ? "Pour montrer tes classeurs, lance 0006_profile_binders.sql dans Supabase" : profileError(e)); }
+  }, 800);
+});
+
 /* ---------- a trainer's collection (read only): value, best cards, every card ---------- */
 const colCache = new Map();   // user id → rows (this visit)
-let colSort = "price";
+let colSort = { k: "price", d: -1 }, colQ = "";
 async function showCollection(body, card, me) {
   body.innerHTML = wait("Chargement de la collection…");
   let rows;
@@ -152,22 +196,48 @@ async function showCollection(body, card, me) {
   const items = [...byCard.values()];
   const total = items.reduce((a, x) => a + x.val, 0), copies = items.reduce((a, x) => a + x.q, 0);
   const top = [...items].sort((a, b) => b.unit - a.unit).slice(0, 6);
-  const sorted = () => colSort === "price" ? [...items].sort((a, b) => b.unit - a.unit)
-    : [...items].sort((a, b) => (b.info.date || "").localeCompare(a.info.date || "") || (parseInt(a.c.n) || 0) - (parseInt(b.c.n) || 0));
-  const draw = () => {
-    body.innerHTML = `<div class="tr-colhead">
-        <div class="valcard"><div class="vc-lbl">${me ? "Ma collection" : `Collection de ${esc(card.name || "@" + card.handle)}`}</div><div class="vc-val">${eur(total).replace("–", "0 €")}</div>
-          <div class="vc-foot"><span class="note"><b>${items.length}</b> cartes · <b>${copies}</b> exemplaires · <b>${sets.size}</b> extensions</span></div></div>
-        <div class="colpeek"><div class="cp-hd2"><h2>Ses plus belles cartes</h2></div><div class="peekgrid">${top.map((x, i) => `<button class="peek" data-top="${i}" aria-label="${esc(x.c.name)}">${imgTag(x.c, "low")}${fxHTML(foilOf(x.c))}${x.unit ? `<span class="pchip">${eur(x.unit)}</span>` : ""}</button>`).join("")}</div></div>
-      </div>
-      <div class="seg tr-sort" id="tr-sort"><button data-s="price" class="${colSort === "price" ? "on" : ""}">Par prix</button><button data-s="set" class="${colSort === "set" ? "on" : ""}">Par extension</button></div>
-      <div class="grid" id="tr-grid">${sorted().map((x, i) => `<div class="tile owned"><button class="cardimg" data-i="${i}" aria-label="${esc(x.c.name)}">${imgTag(x.c, "low")}${fxHTML(foilOf(x.c))}</button>${x.q > 1 ? `<span class="qty">×${x.q}</span>` : ""}<div class="cap"><span class="n">${esc(x.info.abbr || "")} ${esc(x.c.n || "")}</span><span class="nm">${esc(x.c.name)}</span><span class="pr">${x.unit ? eur(x.unit) : ""}</span></div></div>`).join("")}</div>`;
-    const list = sorted();
-    body.querySelector("#tr-grid").onclick = e => { const b = e.target.closest("[data-i]"); if (b) openViewer(list[+b.dataset.i].c); };
-    body.querySelector(".peekgrid").onclick = e => { const b = e.target.closest("[data-top]"); if (b) openViewer(top[+b.dataset.top].c); };
-    body.querySelector("#tr-sort").onclick = e => { const b = e.target.closest("[data-s]"); if (b) { colSort = b.dataset.s; draw(); } };
+  for (const x of items) { x.no = parseInt((x.c.src || x.c.n || "").replace(/\D+/g, "")) || 0; x.date = x.info.date || ""; }
+  // search and sort like "Ma collection" (favourites only make sense on my own page)
+  const sorts = SORTS.filter(x => me || x.k !== "fav");
+  const sorted = () => {
+    const t = colQ.trim().toLowerCase();
+    const l = t ? items.filter(x => x.c.name.toLowerCase().includes(t) || (x.info.name || "").toLowerCase().includes(t) || (x.c.n || "").replace(/^0+/, "") === t.replace(/^0+/, "")) : items;
+    return sortItems(l, colSort.k, colSort.d);
   };
-  draw();
+  const grid = () => {
+    const list = sorted(), g = body.querySelector("#tr-grid");
+    g.innerHTML = list.length ? list.map((x, i) => `<div class="tile owned"><button class="cardimg" data-i="${i}" aria-label="${esc(x.c.name)}">${imgTag(x.c, "low")}${fxHTML(foilOf(x.c))}</button>${x.q > 1 ? `<span class="qty">×${x.q}</span>` : ""}<div class="cap"><span class="n">${esc(x.info.abbr || "")} ${esc(x.c.n || "")}</span><span class="nm">${esc(x.c.name)}</span><span class="pr">${x.unit ? eur(x.unit) : ""}</span></div></div>`).join("")
+      : `<div class="empty-state" style="grid-column:1/-1"><b>Aucune carte trouvée</b></div>`;
+    g.onclick = e => { const b = e.target.closest("[data-i]"); if (b) openViewer(list[+b.dataset.i].c); };
+    const s = sorts.find(x => x.k === colSort.k);
+    body.querySelector("#tr-sortl").textContent = (s?.l || "").replace(/^Par /, "").replace(/^./, m => m.toUpperCase()) + (colSort.d > 0 ? " ↑" : " ↓");
+  };
+  body.innerHTML = `<div class="tr-colhead">
+      <div class="valcard"><div class="vc-lbl">${me ? "Ma collection" : `Collection de ${esc(card.name || "@" + card.handle)}`}</div><div class="vc-val">${eur(total).replace("–", "0 €")}</div>
+        <div class="vc-foot"><span class="note"><b>${items.length}</b> cartes · <b>${copies}</b> exemplaires · <b>${sets.size}</b> extensions</span></div></div>
+      <div class="colpeek"><div class="cp-hd2"><h2>${me ? "Mes plus belles cartes" : "Ses plus belles cartes"}</h2></div><div class="peekgrid">${top.map((x, i) => `<button class="peek" data-top="${i}" aria-label="${esc(x.c.name)}">${imgTag(x.c, "low")}${fxHTML(foilOf(x.c))}${x.unit ? `<span class="pchip">${eur(x.unit)}</span>` : ""}</button>`).join("")}</div></div>
+    </div>
+    <div class="toolbar coltools"><label class="search" for="tr-q">${ICON.search}<input id="tr-q" placeholder="Rechercher une carte ou une extension" value="${esc(colQ)}" autocomplete="off"></label><button class="toggle" id="tr-sortb"><span id="tr-sortl"></span></button></div>
+    <div class="grid" id="tr-grid"></div>`;
+  body.querySelector(".peekgrid").onclick = e => { const b = e.target.closest("[data-top]"); if (b) openViewer(top[+b.dataset.top].c); };
+  body.querySelector("#tr-q").oninput = e => { colQ = e.target.value; grid(); };
+  body.querySelector("#tr-sortb").onclick = () => {
+    const el = document.createElement("div"); el.className = "modal"; el.id = "trsort";
+    const drawSheet = () => {
+      el.innerHTML = `<div class="sheet sortsheet" role="dialog" aria-modal="true" aria-label="Trier"><h2>Trier</h2>
+        <div class="sortlist">${sorts.map(x => `<button class="sortopt ${colSort.k === x.k ? "on" : ""}" data-k="${x.k}"><span>${x.l}</span>${colSort.k === x.k ? `<i class="sdir">${colSort.d > 0 ? "↑" : "↓"}</i>` : ""}</button>`).join("")}</div>
+        <p class="note">Touche encore le tri choisi pour inverser l'ordre.</p><button class="cp-close sortclose" id="ts-x" aria-label="Fermer">${ICON.x}</button></div>`;
+    };
+    drawSheet(); document.body.append(el);
+    el.onclick = e => {
+      if (e.target === el || e.target.closest("#ts-x")) return el.remove();
+      const b = e.target.closest("[data-k]"); if (!b) return;
+      const x = sorts.find(y => y.k === b.dataset.k);
+      colSort = colSort.k === x.k ? { k: x.k, d: -colSort.d } : { k: x.k, d: x.d };
+      grid(); drawSheet();
+    };
+  };
+  grid();
 }
 
 /* "Partager une extension" from a trainer's page: one of my extensions → invitation */
