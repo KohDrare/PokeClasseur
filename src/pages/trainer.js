@@ -11,6 +11,7 @@ import { img, loadSeries, loadSet, logoImg, peekSet, pool } from "../data/tcgdex
 import { LS } from "../lib/storage.js";
 import { openShowcaseEditor } from "../features/showcase.js";
 import { openViewer } from "../components/viewer.js";
+import { openCard } from "../components/card-modal.js";
 import { eur, foilOf, fxHTML, priceOf } from "../features/variants.js";
 import { $, ICON, esc } from "../lib/core.js";
 import { imgTag, setNav, toast } from "../lib/ui.js";
@@ -117,7 +118,7 @@ export async function renderTrainer(handle, opts = {}) {
       body.innerHTML = show.length ? `${me ? `<div class="ig-shead"><button class="ig-link" id="ig-pick">Modifier la vitrine</button></div>` : ""}<div class="ig-grid">${show.map((c, i) => `<button class="ig-cell" data-sc="${i}" aria-label="${esc(c.name)}">${c.img ? `<img src="${img(c.img, "low")}" alt="" loading="lazy">` : ""}</button>`).join("")}</div>`
         : empty(IG.grid, me ? "Montre tes plus belles cartes" : "Vitrine vide", me ? "Choisis jusqu'à 12 cartes à afficher en haut de ton profil." : `@${esc(card.handle)} n'a pas encore choisi de cartes à montrer.`, me ? `<button class="ig-link" id="ig-pick">Choisir ma vitrine</button>` : "");
       body.onclick = e => {
-        const b = e.target.closest("[data-sc]"); if (b) { const c = show[+b.dataset.sc]; if (c.img) openViewer(c); return; }
+        const b = e.target.closest("[data-sc]"); if (b) { openFull(show, +b.dataset.sc); return; }
         if (e.target.closest("#ig-pick")) openShowcaseEditor();
       };
     },
@@ -157,7 +158,8 @@ export async function renderTrainer(handle, opts = {}) {
   };
   $("#tr-link").onclick = share;
   const s2 = $("#ig-share2"); if (s2) s2.onclick = share;
-  if (canSee) highlights(card, me, set => { colQ = set.name; select("col"); toTabs(); });
+  if (selFor !== card.id) { selFor = card.id; selSet = null; }
+  if (canSee) highlights(card, me, set => { selSet = selSet === set.id ? null : set.id; paintHl(); select("col"); });
   if (me) {
     const mn = $("#ig-menu"); if (mn) mn.onclick = () => (ownTab === "sett" ? select(lastTab) : settings());
     $("#ig-edit").onclick = () => (opts.after ? settings("#pf-edit") : (location.hash = "#/profil"));
@@ -191,8 +193,28 @@ async function highlights(card, me, open) {
   const all = new Map((S.SERIES || []).flatMap(x => x.sets).map(t => [t.id, t]));
   const sets = [...n.keys()].map(id => all.get(id)).filter(Boolean).sort((a, b) => n.get(b.id) - n.get(a.id));
   if (!sets.length) { el.remove(); return; }
-  el.innerHTML = sets.map((t, i) => `<button class="ig-hlb" data-h="${i}"><span class="ig-hlc">${logoImg(t.id, t.logo, t.name, t.serie, true)}</span><small>${esc(t.name)}</small></button>`).join("");
+  el.innerHTML = sets.map((t, i) => `<button class="ig-hlb" data-h="${i}" data-sid="${esc(t.id)}" aria-pressed="false"><span class="ig-hlc">${logoImg(t.id, t.logo, t.name, t.serie, true)}</span><small>${esc(t.name)}</small></button>`).join("");
   el.onclick = e => { const b = e.target.closest("[data-h]"); if (b) open(sets[+b.dataset.h]); };
+  paintHl();
+}
+/* the extension picked in the circles (null = everything): the collection tab shows only its cards */
+let selSet = null, selFor = null;
+function paintHl() {
+  document.querySelectorAll("#ig-hl [data-sid]").forEach(b => { const on = b.dataset.sid === selSet; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); });
+}
+/* a card's full page from a saved snapshot (showcase, binder): its extension is opened on this device first */
+async function fullCards(snaps) {
+  const out = await Promise.all(snaps.map(async x => {
+    const sid = x.setId || x.id.slice(0, x.id.lastIndexOf("-"));
+    const s = (await peekSet(sid).catch(() => null)) || (await loadSet(sid).catch(() => null));
+    const c = s?.cards.find(y => y.id === x.id);
+    return c ? Object.assign(c, { _info: s.info }) : null;
+  }));
+  return out;
+}
+async function openFull(snaps, i) {
+  const full = await fullCards(snaps), ok = full.filter(Boolean);
+  if (full[i]) openCard(full[i], ok); else if (snaps[i]?.img) openViewer(snaps[i]);
 }
 
 /* "Découvrir des dresseurs" on my page: the newest trainers I don't follow yet */
@@ -259,7 +281,7 @@ function showBinders(body, card, me, theirs) {
     if (pb) { const b = myBinders().find(x => x.id === pb.dataset.pub); setBinderPublic(pb.dataset.pub, !b?.pub); showBinders(body, card, me, theirs); toast(b?.pub ? "Classeur privé" : "Classeur visible sur ton profil"); return; }
     const t = e.target.closest("[data-b]"); if (!t) return;
     const b = list[+t.dataset.b];
-    openBinderView({ title: b.name, color: b.color, mode: b.mode || "pages", slots: b.cards.map(c => ({ c, owned: true })), onOpen: sl => sl.c.img && openViewer(sl.c) });
+    openBinderView({ title: b.name, color: b.color, mode: b.mode || "pages", slots: b.cards.map(c => ({ c, owned: true })), onOpen: sl => openFull(b.cards, b.cards.findIndex(c => c.id === sl.c.id)) });
   };
 }
 /* my binders shown on my profile follow every change of them */
@@ -298,6 +320,8 @@ async function showCollection(body, card, me) {
   if (!body.isConnected) return;
   if (!me && !rows.length && card.stats?.cards) { body.innerHTML = `<div class="empty-state"><b>Collection pas encore lisible</b>Pour voir les cartes des autres, lance le fichier <b>0005_public_collection.sql</b> dans Supabase (SQL Editor → Run).</div>`; return; }
   if (!rows.length) { body.innerHTML = `<div class="empty-state"><b>Aucune carte pour l'instant</b></div>`; return; }
+  const sel = selFor === card.id ? selSet : null;
+  if (sel) rows = rows.filter(r => r.set_id === sel);
   // the extensions' cards (from this device when already seen, else downloaded once)
   const ids = [...new Set(rows.map(r => r.set_id))], sets = new Map();
   let done = 0;
@@ -329,19 +353,20 @@ async function showCollection(body, card, me) {
     const list = sorted(), g = body.querySelector("#tr-grid");
     g.innerHTML = list.length ? list.map((x, i) => `<div class="tile owned"><button class="cardimg" data-i="${i}" aria-label="${esc(x.c.name)}">${imgTag(x.c, "low")}${fxHTML(foilOf(x.c))}</button>${x.q > 1 ? `<span class="qty">×${x.q}</span>` : ""}<div class="cap"><span class="n">${esc(x.info.abbr || "")} ${esc(x.c.n || "")}</span><span class="nm">${esc(x.c.name)}</span><span class="pr">${x.unit ? eur(x.unit) : ""}</span></div></div>`).join("")
       : `<div class="empty-state" style="grid-column:1/-1"><b>Aucune carte trouvée</b></div>`;
-    g.onclick = e => { const b = e.target.closest("[data-i]"); if (b) openViewer(list[+b.dataset.i].c); };
+    g.onclick = e => { const b = e.target.closest("[data-i]"); if (b) openCard(list[+b.dataset.i].c, list.map(x => x.c)); };
     const s = sorts.find(x => x.k === colSort.k);
     body.querySelector("#tr-sortl").textContent = (s?.l || "").replace(/^Par /, "").replace(/^./, m => m.toUpperCase()) + (colSort.d > 0 ? " ↑" : " ↓");
   };
   body.innerHTML = `<div class="tr-colhead">
-      <div class="valcard"><div class="vc-lbl">${me ? "Ma collection" : `Collection de ${esc(card.name || "@" + card.handle)}`}</div><div class="vc-val">${eur(total).replace("–", "0 €")}</div>
-        <div class="vc-foot"><span class="note"><b>${items.length}</b> cartes · <b>${copies}</b> exemplaires · <b>${sets.size}</b> extensions</span></div></div>
-      <div class="colpeek"><div class="cp-hd2"><h2>${me ? "Mes plus belles cartes" : "Ses plus belles cartes"}</h2></div><div class="peekgrid">${top.map((x, i) => `<button class="peek" data-top="${i}" aria-label="${esc(x.c.name)}">${imgTag(x.c, "low")}${fxHTML(foilOf(x.c))}${x.unit ? `<span class="pchip">${eur(x.unit)}</span>` : ""}</button>`).join("")}</div></div>
+      <div class="valcard"><div class="vc-lbl">${sel ? esc(setName(sel)) : me ? "Ma collection" : `Collection de ${esc(card.name || "@" + card.handle)}`}</div><div class="vc-val">${eur(total).replace("–", "0 €")}</div>
+        <div class="vc-foot"><span class="note"><b>${items.length}</b> cartes · <b>${copies}</b> exemplaires · <b>${sets.size}</b> extension${sets.size > 1 ? "s" : ""}</span>${sel ? `<button class="ig-link" id="tr-all">Toute la collection</button>` : ""}</div></div>
+      <div class="colpeek"><div class="cp-hd2"><h2>${me ? "Mes plus belles cartes" : "Ses plus belles cartes"}${sel ? ` · ${esc(setName(sel))}` : ""}</h2></div><div class="peekgrid">${top.map((x, i) => `<button class="peek" data-top="${i}" aria-label="${esc(x.c.name)}">${imgTag(x.c, "low")}${fxHTML(foilOf(x.c))}${x.unit ? `<span class="pchip">${eur(x.unit)}</span>` : ""}</button>`).join("")}</div></div>
     </div>
     <div class="toolbar coltools"><label class="search" for="tr-q">${ICON.search}<input id="tr-q" placeholder="Rechercher une carte ou une extension" value="${esc(colQ)}" autocomplete="off"></label><button class="toggle" id="tr-sortb"><span id="tr-sortl"></span></button></div>
     <div class="grid" id="tr-grid"></div>`;
-  body.querySelector(".peekgrid").onclick = e => { const b = e.target.closest("[data-top]"); if (b) openViewer(top[+b.dataset.top].c); };
+  body.querySelector(".peekgrid").onclick = e => { const b = e.target.closest("[data-top]"); if (b) openCard(top[+b.dataset.top].c, top.map(x => x.c)); };
   body.querySelector("#tr-q").oninput = e => { colQ = e.target.value; grid(); };
+  const all = body.querySelector("#tr-all"); if (all) all.onclick = () => { selSet = null; paintHl(); showCollection(body, card, me); };
   body.querySelector("#tr-sortb").onclick = () => {
     const el = document.createElement("div"); el.className = "modal"; el.id = "trsort";
     const drawSheet = () => {

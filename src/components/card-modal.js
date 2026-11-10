@@ -1,6 +1,6 @@
 import { openViewer } from "./viewer.js";
 import { rarity, symHTML } from "../features/rarity.js";
-import { badgeHTML, eur, foilOf, fxHTML, isSpecial, mainVariant, priceOf, rareName, variantLabel, variantsOf } from "../features/variants.js";
+import { badgeHTML, eur, foilOf, fxHTML, isSpecial, mainVariant, priceOf, rareName, shownVariants, variantLabel, variantsOf } from "../features/variants.js";
 import { $, ICON, esc } from "../lib/core.js";
 import { fmtDate, imgTag, numLabel, toast } from "../lib/ui.js";
 import { codeBadge, logoImg } from "../data/tcgdex.js";
@@ -8,7 +8,7 @@ import { askMotion, attachTilt } from "../features/tilt.js";
 import { renderCollection } from "../pages/collection.js";
 import { renderSetStats } from "../pages/set-stats.js";
 import { drawCards, refreshCounts } from "../pages/set.js";
-import { LANGS, condFactor, condOf, isFav, langOf, ownedAny, qtyOf, setFav, setLang, setQty } from "../state/collection.js";
+import { LANGS, condFactor, condOf, fixOrphans, isFav, langOf, ownedAny, qtyOf, setFav, setLang, setQty } from "../state/collection.js";
 import { S } from "../state/shared.js";
 import { unToggleWish } from "../union/feed.js";
 import { openArtist, openMon, sprite } from "../pages/pokedex.js";
@@ -28,11 +28,12 @@ export function openCard(card, seq, startV, opts = {}) {
   let untilt = () => {};
   const draw = () => {
     untilt(); untilt = () => {};
+    fixOrphans([seq[idx]]);
     if (document.documentElement.classList.contains("m")) return drawPhone();
     const c = seq[idx];
     const info = c._info || baseInfo;   // a list can mix extensions (collection sorted by price…)
     const r = rarity(c.r);
-    if (!pv || !variantsOf(c).includes(pv)) pv = mainVariant(c);
+    if (!pv || !shownVariants(c).includes(pv)) pv = mainVariant(c);
     root.innerHTML = `<div class="modal" id="mdl"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(c.name)}">
       <button class="iconbtn close" id="m-close" aria-label="Fermer">${ICON.x}</button>
       <div class="big"><div class="holo" id="holo">${imgTag(c, "high")}${fxHTML(foilOf(c, pv))}${badgeHTML(c, pv)}<div class="glare"></div></div></div>
@@ -49,9 +50,9 @@ export function openCard(card, seq, startV, opts = {}) {
           ${c.rm ? `<dt>Marque</dt><dd>${esc(c.rm)}</dd>` : ""}
         </dl>
         <div class="h3">Ma collection</div>
-        <div class="versions" id="vers">${variantsOf(c).map(v => verRow(c, v, v === pv)).join("")}</div>
+        <div class="versions" id="vers">${shownVariants(c).map(v => verRow(c, v, v === pv)).join("")}</div>
           ${ownedAny(c.id) ? `<div class="langrow" id="m-lang"><span>Langue</span>${Object.entries(LANGS).map(([k, x]) => `<button class="${langOf(c.id) === k ? "on" : ""}" data-l="${k}" aria-pressed="${langOf(c.id) === k}">${x.flag} ${k}</button>`).join("")}</div>` : ""}
-          <div id="m-owners">${cardOwnersHTML(c, variantsOf(c))}</div>
+          <div id="m-owners">${cardOwnersHTML(c, shownVariants(c))}</div>
         ${variantsOf(c).length > 1 ? `<p class="note" style="margin-top:8px">Clique sur une version pour la voir sur la carte.</p>` : ""}
         <div class="navrow">
           <button class="pill ghost" id="m-prev" ${idx === 0 ? "disabled" : ""}>${ICON.prev}</button>
@@ -105,7 +106,7 @@ export function openCard(card, seq, startV, opts = {}) {
   const drawPhone = () => {
     const c = seq[idx];
     const r = rarity(c.r);
-    if (!pv || !variantsOf(c).includes(pv)) pv = mainVariant(c);
+    if (!pv || !shownVariants(c).includes(pv)) pv = mainVariant(c);
     const nInfo = c._info || baseInfo;
     const owned = Object.values(S.COL.cards[c.id]?.v || {}).reduce((a, b) => a + b, 0);
     const wished = UN.wish.some(w => w.id === c.id);
@@ -137,9 +138,9 @@ export function openCard(card, seq, startV, opts = {}) {
           <div class="cp-num">${nInfo.id ? `<span class="cp-code">${codeBadge(nInfo.id, nInfo.abbr)}</span>` : ""}<b>${esc(numLabel(c, nInfo))}</b></div>
         </div>
         <div class="h3">Ma collection</div>
-        <div class="versions" id="vers">${variantsOf(c).map(v => verRow(c, v, v === pv)).join("")}</div>
+        <div class="versions" id="vers">${shownVariants(c).map(v => verRow(c, v, v === pv)).join("")}</div>
         ${ownedAny(c.id) ? `<div class="langrow" id="m-lang"><span>Langue</span>${Object.entries(LANGS).map(([k, x]) => `<button class="${langOf(c.id) === k ? "on" : ""}" data-l="${k}" aria-pressed="${langOf(c.id) === k}">${x.flag} ${k}</button>`).join("")}</div>` : ""}
-        <div id="m-owners">${cardOwnersHTML(c, variantsOf(c))}</div>
+        <div id="m-owners">${cardOwnersHTML(c, shownVariants(c))}</div>
         <dl class="cp-rows">
           ${row("Extension", esc(c.linked ? nInfo.promoSet || "Promo" : nInfo.name || c._setName || ""))}
           ${row("Série", esc(nInfo.serie?.name || ""))}
@@ -214,7 +215,7 @@ export function openCard(card, seq, startV, opts = {}) {
   /* open this Pokémon in the Pokédex */
   // the Pokémon's page opens on top of the card: closing it brings the card back
   /* shared extension: who owns each version (redrawn after a quantity change) */
-  const paintOwners = (c, first) => { const box = $("#m-owners"); if (!box) return; box.innerHTML = cardOwnersHTML(c, variantsOf(c)); bindCardOwners(c, () => { changed = true; paintOwners(c); }); if (!first) changed = true; };
+  const paintOwners = (c, first) => { const box = $("#m-owners"); if (!box) return; box.innerHTML = cardOwnersHTML(c, shownVariants(c)); bindCardOwners(c, () => { changed = true; paintOwners(c); }); if (!first) changed = true; };
   // an illustrator's other cards, on top of this one (closing comes back to the card)
   const goArtist = name => openArtist(name, { leave: () => close(true), back: () => openCard(seq[idx], seq, pv, opts) });
   const goDex = n => openMon(n, { leave: () => close(true), back: () => openCard(seq[idx], seq, pv, opts) });

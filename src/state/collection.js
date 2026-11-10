@@ -37,6 +37,18 @@ export function setQty(card, variant, n) {
   saveCol();
   dispatchEvent(new CustomEvent("card:qty", { detail: { id: card.id, setId: e.s, variant, n } }));   // shared extensions listen
 }
+/* a card that exists in one version only (TCGdex data, not guessed): a copy saved under another version
+   (older data, e.g. "normal" for a holo-only card) is moved to it, so the card page shows it and it can be removed */
+export function fixOrphans(cards) {
+  for (const c of cards || []) {
+    const e = S.COL.cards[c.id]; if (!e || c.vg || !c.v || c.v.length !== 1) continue;
+    const to = c.v[0], bad = Object.entries(e.v || {}).filter(([k, n]) => n > 0 && k !== to);
+    if (!bad.length) continue;
+    const n = (e.v[to] || 0) + bad.reduce((a, [, q]) => a + q, 0);
+    for (const [k] of bad) setQty(c, k, 0);
+    setQty(c, to, n);
+  }
+}
 /* condition of your copy (set on the price page): its value is the near-mint price × this share */
 export const COND_F = { NM: 1, EX: 0.85, GD: 0.7, LP: 0.55, PL: 0.4, PO: 0.25 };
 export const condOf = id => S.COL.cards[id]?.c || "NM";

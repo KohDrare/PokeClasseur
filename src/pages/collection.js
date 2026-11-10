@@ -6,7 +6,7 @@ import { $, ICON, esc } from "../lib/core.js";
 import { LS } from "../lib/storage.js";
 import { imgTag, numLabel, setNav } from "../lib/ui.js";
 import { dexCounts } from "./pokedex.js";
-import { LANGS, condFactor, isFav, langOf, ownedAny, ownedBySet } from "../state/collection.js";
+import { LANGS, condFactor, fixOrphans, isFav, langOf, ownedAny, ownedBySet } from "../state/collection.js";
 import { SORTS, sortItems } from "../features/colsort.js";
 import { S } from "../state/shared.js";
 import { PREF, savePref } from "../state/prefs.js";
@@ -70,6 +70,7 @@ export async function renderCollection() {
   // every owned card, with what we sort on
   const items = [];
   const seen = new Map();
+  for (const s of sets) fixOrphans(s.cards);
   for (const s of sets) for (const c of s.cards) {
     if (!ownedAny(c.id)) continue;
     // a product promo is listed in its extension AND in the promo set: show it once

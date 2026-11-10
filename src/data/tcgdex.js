@@ -96,7 +96,7 @@ export function compact(d, setId) {
   const bad = priceCheck(setId, d.localId, p.trend || p.avg || 0, d.pricing?.tcgplayer);
   return {
     id: d.id, setId, n: d.localId, name: d.name, img: d.image || "", r: d.rarity || "", cat: d.category || "",
-    v: guessed(d) ? upcomingVariants({ r: d.rarity }) : VARIANT_ORDER.filter(k => vs[k]), p: bad ? bad.p : p.trend || p.avg || 0, ph: bad ? 0 : p["trend-holo"] || p["avg-holo"] || 0,
+    v: guessed(d) ? upcomingVariants({ r: d.rarity }) : VARIANT_ORDER.filter(k => vs[k]), ...(guessed(d) ? { vg: 1 } : {}), p: bad ? bad.p : p.trend || p.avg || 0, ph: bad ? 0 : p["trend-holo"] || p["avg-holo"] || 0,
     dx: d.dexId?.length ? d.dexId : d.category === "Pokémon" ? dexFromName(d.name) : [], il: d.illustrator || "", hp: d.hp || "", t: (d.types || []).join(", "), st: d.stage || "", rm: d.regulationMark || "", ok: 1
   };
 }

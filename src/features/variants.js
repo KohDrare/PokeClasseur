@@ -7,6 +7,11 @@ export const VARIANT_ORDER = ["normal", "holo", "firstEdition", "reverse", "wPro
 export const VARIANT_LABEL = { normal: "Normale", holo: "Holo", reverse: "Reverse", firstEdition: "1re édition", wPromo: "Promo W" };
 export const variantsOf = c => c.v && c.v.length ? c.v : ["normal"];
 export const mainVariant = c => variantsOf(c)[0];
+/* the versions shown on a card's page: its own, plus any version you have that it no longer lists (so it can be removed) */
+export function shownVariants(c) {
+  const vs = variantsOf(c), o = Object.entries(S.COL?.cards?.[c.id]?.v || {}).filter(([k, n]) => n > 0 && !vs.includes(k)).map(([k]) => k);
+  return o.length ? [...vs, ...o] : vs;
+}
 /* which foil to show for a card: "holo", "rev" or "" */
 /* special rares (ex, Méga-ex, full art, illustrations, gold…) are named precisely and get no generic holo shine */
 export const PLAIN_RAR = new Set(["", "commune", "peu commune", "rare", "holo rare", "rare holo", "promo", "sans rareté", "aucune"]);

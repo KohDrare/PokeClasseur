@@ -598,7 +598,7 @@ html.m .ig{--pp:14px}
 .ig-dc .ig-btn{width:100%;flex:none}
 .ig-dx{position:absolute;right:6px;top:6px;width:26px;height:26px;border:0;background:none;color:var(--muted);display:grid;place-items:center;cursor:pointer;padding:0}
 .ig-dx svg{width:16px;height:16px}
-.ig-hl{display:flex;gap:14px;overflow-x:auto;scrollbar-width:none;margin:18px calc(-1*var(--pp)) 0;padding:2px var(--pp) 4px}
+.ig-hl{display:flex;gap:14px;overflow-x:auto;scrollbar-width:none;margin:14px calc(-1*var(--pp)) 0;padding:7px var(--pp) 4px}
 .ig-hl::-webkit-scrollbar{display:none}
 .ig-hlb{flex:none;width:72px;border:0;background:none;padding:0;color:var(--fg);font:inherit;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer}
 .ig-hlc{width:66px;height:66px;border-radius:50%;background:#fff;box-shadow:0 0 0 1px var(--line),0 0 0 3px var(--bg,#fff),0 0 0 4px var(--line);display:grid;place-items:center;overflow:hidden;padding:9px}
@@ -648,3 +648,6 @@ html.m .ig-tabs button span{display:none}
 .sc-empty{margin:6px 0}
 .scedit .be-card img,.scedit .be-card .fallback{width:100%;height:100%;object-fit:cover;display:block}
 .ig-shead{display:flex;justify-content:flex-end;margin:0 0 8px}
+.ig-hlb.on .ig-hlc{box-shadow:0 0 0 2px var(--bg,#fff),0 0 0 4.5px var(--navy)}
+.ig-hlb.on small{color:var(--navy);font-weight:800}
+.tr-colhead .vc-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}

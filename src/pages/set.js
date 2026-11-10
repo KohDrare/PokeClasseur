@@ -10,7 +10,7 @@ import { $, ICON, esc } from "../lib/core.js";
 import { LS } from "../lib/storage.js";
 import { fmtDate, imgTag, numLabel, setNav, toast } from "../lib/ui.js";
 import { SETMETA } from "./home.js";
-import { LANGS, langOf, ownedAny, qtyOf, saveCol, setQty } from "../state/collection.js";
+import { LANGS, fixOrphans, langOf, ownedAny, qtyOf, saveCol, setQty } from "../state/collection.js";
 import { PREF, applyGray, savePref } from "../state/prefs.js";
 import { bindShareRow, ownedBy, shareRowHTML, tileOwnersHTML } from "../features/sharesheet.js";
 import { sharedOf } from "../cloud/shared.js";
@@ -33,6 +33,7 @@ export async function renderSet(setId) {
     });
     if (S.CUR.setId !== setId) return;
     S.CUR.data = data; S.CUR.loading = 1;
+    fixOrphans(data.cards);
     if (data.info) { SETMETA[setId] = { a: data.info.abbr || "", d: data.info.date || "", t: data.cards.filter(c => !c.linked).length }; LS.set("pc-setmeta", SETMETA); }
     drawSetHead(); drawSetBody();
     if (window.PENDING_CARD) { const c = data.cards.find(x => x.id === window.PENDING_CARD); window.PENDING_CARD = null; if (c) openCard(c, data.cards); }
