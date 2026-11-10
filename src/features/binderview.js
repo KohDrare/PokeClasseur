@@ -32,6 +32,9 @@ export function openBinderView(opts) {
   const ed = opts.editable || null;
   let editing = !!ed?.startEdit, slots = opts.slots;
   const pages = () => Math.max(1, Math.ceil((slots.length + (editing ? 1 : 0)) / PER));
+  // a big screen shows the binder open on two pages, like a real one
+  const wide = () => innerWidth >= 1000 && !document.documentElement.classList.contains("m");
+  const step = () => (wide() ? 2 : 1);
   document.getElementById("bview")?.remove();
   const el = document.createElement("div");
   el.id = "bview"; el.className = "bview";
@@ -55,6 +58,7 @@ export function openBinderView(opts) {
     el.classList.toggle("bare", hidden && !editing);
     el.classList.toggle("editing", editing);
     page = Math.min(page, pages() - 1);
+    if (wide()) page -= page % 2;
     el.innerHTML = `
       <div class="bv-bar">
         <h2>${esc(opts.title)}</h2>
@@ -72,13 +76,13 @@ export function openBinderView(opts) {
         <p class="bv-hint">Maintiens une carte et lâche-la sur une autre pour les échanger.</p>` : ""}
       <div class="bv-colors" hidden>${BINDER_COLORS.map(c => `<button class="bv-sw ${c === color ? "on" : ""}" data-c="${c}" style="background:${c}" aria-label="Couleur ${c}"></button>`).join("")}</div>
       ${mode === "pages"
-        ? `<div class="bv-pagewrap"><div class="bv-page ${turn > 0 ? "turn-n" : turn < 0 ? "turn-p" : ""}">${pageHTML(page)}</div></div>
-           <div class="bv-pager"><button class="bv-btn" data-a="prev" ${page === 0 ? "disabled" : ""} aria-label="Page précédente">${I.prev}</button><span>${page + 1} / ${pages()}</span><button class="bv-btn" data-a="next" ${page >= pages() - 1 ? "disabled" : ""} aria-label="Page suivante">${I.next}</button></div>`
+        ? `<div class="bv-pagewrap ${wide() ? "spread" : ""}">${(wide() ? [page, page + 1] : [page]).map(p => `<div class="bv-page ${turn > 0 ? "turn-n" : turn < 0 ? "turn-p" : ""}">${pageHTML(p)}</div>`).join("")}</div>
+           <div class="bv-pager"><button class="bv-btn" data-a="prev" ${page === 0 ? "disabled" : ""} aria-label="Page précédente">${I.prev}</button><span>${wide() && page + 1 < pages() ? `${page + 1}-${page + 2}` : page + 1} / ${pages()}</span><button class="bv-btn" data-a="next" ${page + step() >= pages() ? "disabled" : ""} aria-label="Page suivante">${I.next}</button></div>`
         : `<div class="bv-scroll"><div class="bv-grid">${slots.map(slotHTML).join("")}${editing ? addHTML : ""}</div></div>`}
       ${editing ? "" : `<button class="bv-hide" data-a="hide">${hidden ? "Afficher" : `${I.hide} Masquer`}</button>
       <button class="bv-close" data-a="close" aria-label="Fermer">${ICON.x}</button>`}`;
   };
-  const go = d => { const np = page + d; if (np < 0 || np >= pages()) return; page = np; draw(d); };
+  const go = d => { const np = page + d * step(); if (np < 0 || np >= pages()) return; page = np; draw(d); };
   const close = () => {
     el.remove(); document.body.style.overflow = prevOverflow; removeEventListener("keydown", key);
     offs.forEach(f => f()); opts.onClose?.();
@@ -150,7 +154,7 @@ export function openBinderView(opts) {
         drag.edge = edge; clearTimeout(flip);
         const turn = () => {
           if (!drag?.edge) return;
-          const np = page + drag.edge;
+          const np = page + drag.edge * step();
           if (np >= 0 && np < pages()) { page = np; drag.over = null; draw(drag.edge); hole(); flip = setTimeout(turn, 750); }
         };
         if (edge) flip = setTimeout(turn, 450);
@@ -193,6 +197,10 @@ export function openBinderView(opts) {
   el.addEventListener("touchmove", e => { if (drag) e.preventDefault(); }, { passive: false });
   el.addEventListener("contextmenu", e => { if (editing) e.preventDefault(); });
 
+  // the window gets wider or narrower: one page or two
+  let wasWide = wide();
+  const onResize = () => { if (wide() !== wasWide && !drag) { wasWide = wide(); draw(); } };
+  addEventListener("resize", onResize); offs.push(() => removeEventListener("resize", onResize));
   draw();
   return close;
 }

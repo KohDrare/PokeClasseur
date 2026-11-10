@@ -4,7 +4,7 @@
 import { getJSON } from "../data/tcgdex.js";
 import { $, API, ICON, esc } from "../lib/core.js";
 import { imgTag, numLabel } from "../lib/ui.js";
-import { VARIANT_LABEL, eur, variantsOf } from "./variants.js";
+import { VARIANT_LABEL, eur, priceOf, variantsOf } from "./variants.js";
 import { PRICE_DATE, priceCheck } from "../data/price-hints.js";
 import { condOf, ownedAny, setCond } from "../state/collection.js";
 
@@ -57,10 +57,18 @@ export async function openPricePage(c, info, startV, onChange) {
   let cond = condOf(c.id);
   const draw = () => {
     let f = figures(cm, v);
-    // Cardmarket figures linked to the wrong product (another version of the card): hand price or TCGplayer instead
-    const bad = f?.fair && v !== "reverse" ? priceCheck(c.setId, c.n, f.fair, tp) : null;
-    if (bad) f = { fair: bad.p, hint: true, src: bad.src, cmWrong: f.fair };
-    else if ((!f || !f.fair) && c.p && v !== "reverse") f = { fair: c.p, hint: true, src: "hint" };
+    /* the price shown on the card (preview, collection value) is the reference: the same number here.
+       Cardmarket's details are kept when they belong to it; far off, they are another version's product */
+    const ref = priceOf(c, v), near = (x, y) => x > 0 && y > 0 && x / y < 1.35 && y / x < 1.35;
+    if (ref) {
+      if (f?.fair && near(f.fair, ref)) f.fair = ref;
+      else f = { fair: ref, hint: true, src: "card", cmWrong: f?.fair || 0 };
+    } else {
+      // Cardmarket figures linked to the wrong product (another version of the card): hand price or TCGplayer instead
+      const bad = f?.fair && v !== "reverse" ? priceCheck(c.setId, c.n, f.fair, tp) : null;
+      if (bad) f = { fair: bad.p, hint: true, src: bad.src, cmWrong: f.fair };
+      else if ((!f || !f.fair) && c.p && v !== "reverse") f = { fair: c.p, hint: true, src: "hint" };
+    }
     const fair = f?.fair || 0;
     const row = (l, x, sub = "") => x ? `<div class="pp-row"><span>${l}${sub ? `<small>${sub}</small>` : ""}</span><b>${eur(x)}</b></div>` : "";
     el.querySelector(".pp-sheet").innerHTML = `
@@ -77,7 +85,7 @@ export async function openPricePage(c, info, startV, onChange) {
           <div class="pp-val">${eur(Math.max(0.02, fair * k.f))}</div>
           ${k.k !== "NM" ? `<div class="note">Comme neuve : ${eur(fair)}</div>` : ""}`; })()}
           ${f.lo && f.hi && f.hi - f.lo > 0.01 ? `<div class="note">Fourchette récente (comme neuve) : ${eur(f.lo)} – ${eur(f.hi)}</div>` : ""}
-          ${f.cmWrong ? `<div class="note">La base de prix associe cette carte à une autre version sur Cardmarket (${eur(f.cmWrong)}) : ${f.src === "tcgplayer" ? "prix TCGplayer converti en euros utilisé à la place" : "prix relevé à la main utilisé à la place"}.</div>` : ""}
+          ${f.cmWrong ? `<div class="note">La base de prix associe cette carte à une autre version sur Cardmarket (${eur(f.cmWrong)}) : ${f.src === "card" ? "le prix de la carte est utilisé à la place, le même que sur sa fiche" : f.src === "tcgplayer" ? "prix TCGplayer converti en euros utilisé à la place" : "prix relevé à la main utilisé à la place"}.</div>` : ""}
           ${f.hint && f.src === "hint" && !f.cmWrong ? `<div class="note">Prix relevé à la main le ${new Date(PRICE_DATE[c.setId] || Date.now()).toLocaleDateString("fr-BE", { day: "numeric", month: "long" })} (ventes Cardmarket) : l'extension est trop récente pour la base de prix.</div>` : ""}
         </div>
         <div class="pp-h">${owned ? "État de ta carte <small>touche pour le changer</small>" : "Selon l'état"}</div>
@@ -95,7 +103,7 @@ export async function openPricePage(c, info, startV, onChange) {
         <a class="pill ghost" target="_blank" rel="noopener" href="https://www.ebay.fr/sch/i.html?_nkw=${q}&LH_Sold=1&LH_Complete=1">eBay · vendues</a>
         <a class="pill ghost" target="_blank" rel="noopener" href="https://www.vinted.fr/catalog?search_text=${q}">Vinted</a>
       </div>
-      <p class="note pp-foot">Le prix estimé est la valeur du milieu entre la tendance Cardmarket et ses moyennes sur 7 et 30 jours : une vente isolée trop chère ou bradée ne le fausse pas. Les prix par état suivent les écarts habituels sur Cardmarket. Pour voir les dernières ventes une par une, ouvre « eBay · vendues ».${cm?.updated ? ` Mis à jour le ${new Date(cm.updated).toLocaleDateString("fr-BE", { day: "numeric", month: "long" })}.` : ""}</p>`;
+      <p class="note pp-foot">Le prix estimé (comme neuve) est le même que sur la fiche de la carte et dans la valeur de ta collection. Les prix par état suivent les écarts habituels sur Cardmarket. Pour voir les dernières ventes une par une, ouvre « eBay · vendues ».${cm?.updated ? ` Mis à jour le ${new Date(cm.updated).toLocaleDateString("fr-BE", { day: "numeric", month: "long" })}.` : ""}</p>`;
     el.querySelector(".pp-vers")?.addEventListener("click", e => { const b = e.target.closest("[data-v]"); if (b) { v = b.dataset.v; draw(); } });
     el.querySelector(".pp-conds")?.addEventListener("click", e => { const b = e.target.closest("[data-k]"); if (!b || !owned) return; setCond(c.id, b.dataset.k); cond = b.dataset.k; onChange?.(); draw(); });
   };
