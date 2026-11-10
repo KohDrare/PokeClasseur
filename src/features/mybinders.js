@@ -11,7 +11,16 @@ import { rarity, symHTML } from "./rarity.js";
 
 const KEY = "pc-binders";
 export const myBinders = () => LS.get(KEY, []);
-const saveAll = list => { LS.set(KEY, list); dispatchEvent(new CustomEvent("binders:changed")); };
+/* every save stamps the binders that changed (and remembers the deleted ones) so the devices can merge them */
+const strip = b => { const { upd, ...r } = b; return JSON.stringify(r); };
+const saveAll = list => {
+  const prev = new Map(LS.get(KEY, []).map(b => [b.id, b])), now = Date.now();
+  for (const b of list) { const p = prev.get(b.id); if (!p || strip(p) !== strip(b)) b.upd = now; else if (p.upd) b.upd = p.upd; }
+  const gone = LS.get("pc-binders-gone", {}), ids = new Set(list.map(b => b.id));
+  let g = false; for (const id of prev.keys()) if (id && !ids.has(id)) { gone[id] = now; g = true; }
+  if (g) LS.set("pc-binders-gone", gone);
+  LS.set(KEY, list); dispatchEvent(new CustomEvent("binders:changed"));
+};
 /* a binder shown on my public profile ("Classeurs" tab) or not */
 export function setBinderPublic(id, on) {
   const list = myBinders(), b = list.find(x => x.id === id); if (!b) return;

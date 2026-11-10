@@ -91,6 +91,9 @@ export async function renderCollection() {
   const shelf = $("#colshelf"); shelf.hidden = false;
   const refreshShelf = () => drawBinderShelf(shelf, items, refreshShelf);
   refreshShelf();
+  // binders changed on another device: the shelf follows
+  const onBinders = e => { if (!shelf.isConnected) return removeEventListener("binders:changed", onBinders); if (e.detail?.remote) refreshShelf(); };
+  addEventListener("binders:changed", onBinders);
   drawSortLabel();
   $("#q-col").oninput = e => { query = e.target.value; drawBody(items); };
   $("#col-sort").onclick = () => openSort(items);

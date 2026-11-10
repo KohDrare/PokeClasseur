@@ -8,6 +8,7 @@ import { colToItems, colToPurchases, rowsToCol, mergeCols, diffItems, diffPurcha
 import { S } from "../state/shared.js";
 import { COL_KEY } from "../state/collection.js";
 import { LS } from "../lib/storage.js";
+import { pullBinders, setBinderPing, stopBinders } from "./binders-sync.js";
 
 let userId = null;
 let synced = { items: [], purchases: [] };   // what the database holds, as far as we know
@@ -78,6 +79,7 @@ async function pull() {
     dispatchEvent(new CustomEvent("collection:remote"));
   }
   await push();   // what changed here meanwhile
+  await pullBinders();
 }
 
 function run(task) {
@@ -92,6 +94,7 @@ function run(task) {
 }
 
 /* live messages between the devices of the account: "something changed, download it" */
+setBinderPing(() => ping());
 function ping() { channel?.send({ type: "broadcast", event: "changed", payload: {} }).catch(() => {}); }
 export function schedulePull(delay = 300) {
   if (!userId) return;
@@ -118,10 +121,12 @@ export function startSync(uid) {
     LS.set(COL_KEY, S.COL);
     await push();
     dispatchEvent(new CustomEvent("collection:replaced"));
+    await pullBinders(uid);
   });
 }
 
 export function stopSync() {
+  stopBinders();
   userId = null; synced = { items: [], purchases: [] }; clearTimeout(timer); clearTimeout(pullTimer); clearInterval(poll);
   if (channel) { supabase.removeChannel(channel); channel = null; }
   setStatus("off");

@@ -9,6 +9,7 @@ import { cloud, cloudReady, hasProfile } from "../cloud/session.js";
 import { SH, shareSet } from "../cloud/shared.js";
 import { img, loadSeries, loadSet, logoImg, peekSet, pool } from "../data/tcgdex.js";
 import { LS } from "../lib/storage.js";
+import { openShowcaseEditor } from "../features/showcase.js";
 import { openViewer } from "../components/viewer.js";
 import { eur, foilOf, fxHTML, priceOf } from "../features/variants.js";
 import { $, ICON, esc } from "../lib/core.js";
@@ -113,11 +114,11 @@ export async function renderTrainer(handle, opts = {}) {
   const empty = (icon, t, sub, btn) => `<div class="ig-empty"><span class="ig-ring">${icon}</span><b>${t}</b><small>${sub}</small>${btn || ""}</div>`;
   const tabs = {
     show: () => {
-      body.innerHTML = show.length ? `<div class="ig-grid">${show.map((c, i) => `<button class="ig-cell" data-sc="${i}" aria-label="${esc(c.name)}">${c.img ? `<img src="${img(c.img, "low")}" alt="" loading="lazy">` : ""}</button>`).join("")}</div>`
+      body.innerHTML = show.length ? `${me ? `<div class="ig-shead"><button class="ig-link" id="ig-pick">Modifier la vitrine</button></div>` : ""}<div class="ig-grid">${show.map((c, i) => `<button class="ig-cell" data-sc="${i}" aria-label="${esc(c.name)}">${c.img ? `<img src="${img(c.img, "low")}" alt="" loading="lazy">` : ""}</button>`).join("")}</div>`
         : empty(IG.grid, me ? "Montre tes plus belles cartes" : "Vitrine vide", me ? "Choisis jusqu'à 12 cartes à afficher en haut de ton profil." : `@${esc(card.handle)} n'a pas encore choisi de cartes à montrer.`, me ? `<button class="ig-link" id="ig-pick">Choisir ma vitrine</button>` : "");
       body.onclick = e => {
         const b = e.target.closest("[data-sc]"); if (b) { const c = show[+b.dataset.sc]; if (c.img) openViewer(c); return; }
-        if (e.target.closest("#ig-pick")) settings("#pf-show");
+        if (e.target.closest("#ig-pick")) openShowcaseEditor();
       };
     },
     col: () => { body.onclick = null; showCollection(body, card, me); },

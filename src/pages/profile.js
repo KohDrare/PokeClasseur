@@ -100,14 +100,7 @@ function drawMe(editing = false) {
     const pub = $("#pf-pub");
     if (pub) pub.onclick = async () => { pub.disabled = true; try { await saveMyProfile({ show_collection: !p.show_collection }); toast(p.show_collection ? "Ta collection est privée" : "Ta collection est visible sur ton profil"); } catch (x) { toast(x.message || "Impossible pour le moment"); } drawMe(); };
     const sw = $("#pf-show");
-    if (sw) sw.onclick = async () => {
-      const { unPickCards } = await import("../union/picker.js");
-      const cur = Array.isArray(p.showcase) ? p.showcase : [];
-      unPickCards({ title: "Ma vitrine (12 cartes maximum)", only: "mine" }, async cs => {
-        const next = [...cs, ...cur.filter(o => !cs.some(c => c.id === o.id))].slice(0, 12).map(c => ({ id: c.id, name: c.name, img: c.img, set: c.set, n: c.n, r: c.r || "", p: c.p || 0 }));
-        try { await saveMyProfile({ showcase: next }); toast("Vitrine mise à jour"); } catch (x) { toast(x.message || "Impossible pour le moment"); }
-      });
-    };
+    if (sw) sw.onclick = async () => (await import("../features/showcase.js")).openShowcaseEditor();
     return;
   }
   let av = p.avatar || 25;
