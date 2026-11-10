@@ -546,5 +546,7 @@ html[data-theme="dark"] .ilink{color:inherit;text-decoration:underline}
 .bv-slot.bv-hole{opacity:.25}
 .bv-slot.bv-target{outline:3px solid var(--bv-ink);outline-offset:2px;transform:scale(.94);transition:transform .12s}
 .bv-drag{position:fixed!important;z-index:300;pointer-events:none;transform:scale(1.08) rotate(-2deg);box-shadow:0 18px 40px rgba(0,0,0,.5)!important;cursor:grabbing}
-.beditor.only-pick .be-grid{max-height:62vh}
+/* Safari squeezes the rows of a height-limited grid of cards: on phones the whole sheet scrolls instead */
+.be-grid{align-content:start;grid-auto-rows:max-content}
+html:not(.m) .beditor.only-pick .be-grid{max-height:62vh}
 .be-foot .pill em{font-style:normal;opacity:.8;margin-left:2px}
