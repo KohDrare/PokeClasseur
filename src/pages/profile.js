@@ -113,7 +113,7 @@ function drawMe(editing = false) {
     const pub = $("#pf-pub");
     if (pub) pub.onclick = async () => { pub.disabled = true; try { await saveMyProfile({ show_collection: !p.show_collection }); toast(p.show_collection ? "Ta collection est privée" : "Ta collection est visible sur ton profil"); } catch (x) { toast(x.message || "Impossible pour le moment"); } drawMe(); };
     const sw = $("#pf-show");
-    if (sw) sw.onclick = async () => (await import("../features/showcase.js")).openShowcaseEditor();
+    if (sw) sw.onclick = () => (mode === "own" ? dispatchEvent(new CustomEvent("showcase:edit")) : (location.hash = trainerLink(p.handle)));
     return;
   }
   let av = p.avatar || 25;

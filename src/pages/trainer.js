@@ -2,17 +2,18 @@
    follow, invite to share an extension, followers / following lists. The data side is cloud/profiles.js
    (tables profiles and follows, function profile_card: supabase/migrations/0002). */
 import { getProfileCard, listFollows, profileError, saveMyProfile, searchProfiles, setFollow } from "../cloud/profiles.js";
-import { myBinders, publicBinders, setBinderPublic } from "../features/mybinders.js";
+import { myBinders, openBinderEditor, publicBinders, setBinderPublic } from "../features/mybinders.js";
+import { swapDrag } from "../features/swapdrag.js";
+import { collectionItems } from "./collection.js";
 import { openBinderView } from "../features/binderview.js";
 import { SORTS, sortItems } from "../features/colsort.js";
 import { cloud, cloudReady, hasProfile } from "../cloud/session.js";
 import { SH, shareSet } from "../cloud/shared.js";
 import { img, loadSeries, loadSet, logoImg, peekSet, pool } from "../data/tcgdex.js";
 import { LS } from "../lib/storage.js";
-import { openShowcaseEditor } from "../features/showcase.js";
 import { openViewer } from "../components/viewer.js";
 import { openCard } from "../components/card-modal.js";
-import { eur, foilOf, fxHTML, priceOf } from "../features/variants.js";
+import { eur, foilOf, fxHTML, mainVariant, priceOf } from "../features/variants.js";
 import { $, ICON, esc } from "../lib/core.js";
 import { imgTag, setNav, toast } from "../lib/ui.js";
 import { ownedBySet } from "../state/collection.js";
@@ -70,7 +71,8 @@ export async function renderTrainer(handle, opts = {}) {
   if (!page.isConnected) return false;
   if (!S.SERIES) { try { S.SERIES = await loadSeries(); } catch { /* offline */ } }
   const me = card.id === cloud.user?.id;
-  const st = card.stats, show = Array.isArray(card.showcase) ? card.showcase : [], binders = Array.isArray(card.binders) ? card.binders : [];
+  let show = Array.isArray(card.showcase) ? card.showcase : [];
+  const st = card.stats, binders = Array.isArray(card.binders) ? card.binders : [];
   const canSee = me || !!st;
   const nb = me ? myBinders().length : binders.length;
   const stat = (n, l, t) => `<button class="ig-stat" data-go="${t}"><b>${n}</b><small>${l}</small></button>`;
@@ -115,11 +117,13 @@ export async function renderTrainer(handle, opts = {}) {
   const empty = (icon, t, sub, btn) => `<div class="ig-empty"><span class="ig-ring">${icon}</span><b>${t}</b><small>${sub}</small>${btn || ""}</div>`;
   const tabs = {
     show: () => {
+      offSwap(); offSwap = () => {};
+      if (me && scDraft) return showEdit();
       body.innerHTML = show.length ? `${me ? `<div class="ig-shead"><button class="ig-link" id="ig-pick">Modifier la vitrine</button></div>` : ""}<div class="ig-grid">${show.map((c, i) => `<button class="ig-cell" data-sc="${i}" aria-label="${esc(c.name)}">${c.img ? `<img src="${img(c.img, "low")}" alt="" loading="lazy">` : ""}</button>`).join("")}</div>`
         : empty(IG.grid, me ? "Montre tes plus belles cartes" : "Vitrine vide", me ? "Choisis jusqu'à 12 cartes à afficher en haut de ton profil." : `@${esc(card.handle)} n'a pas encore choisi de cartes à montrer.`, me ? `<button class="ig-link" id="ig-pick">Choisir ma vitrine</button>` : "");
       body.onclick = e => {
         const b = e.target.closest("[data-sc]"); if (b) { openFull(show, +b.dataset.sc); return; }
-        if (e.target.closest("#ig-pick")) openShowcaseEditor();
+        if (e.target.closest("#ig-pick")) editShowcase();
       };
     },
     col: () => { body.onclick = null; showCollection(body, card, me); },
@@ -127,6 +131,44 @@ export async function renderTrainer(handle, opts = {}) {
     sett: () => { body.innerHTML = ""; },
     followers: () => people("followers"), following: () => people("following")
   };
+  /* my showcase, edited in place: hold a card and drop it on another one to swap them, ✕ to take one out,
+     "+" for the same card picker as the binders (search, sort, rarity); saved with "Terminé" */
+  let offSwap = () => {};
+  const editShowcase = () => { scDraft = show.map(c => ({ ...c })); tabs.show(); };
+  const showEdit = () => {
+    offSwap();
+    body.innerHTML = `<div class="ig-shead ed"><span class="note">Maintiens une carte et lâche-la sur une autre pour les échanger.</span>
+        <div class="ig-edb"><button class="ig-btn" id="sc-cancel">Annuler</button><button class="ig-btn blue" id="sc-done">Terminé</button></div></div>
+      <div class="ig-grid edit" id="sc-grid">${scDraft.map((c, i) => `<div class="ig-cell" data-i="${i}">${c.img ? `<img src="${img(c.img, "low")}" alt="" draggable="false">` : ""}<button class="sc-x" data-x="${i}" aria-label="Retirer ${esc(c.name)}">${ICON.x}</button></div>`).join("")}${scDraft.length < SC_MAX ? `<button class="ig-cell ig-add" id="sc-add"><i>+</i><span>Ajouter</span></button>` : ""}</div>
+      <p class="note sc-cnt">${scDraft.length}/${SC_MAX} cartes</p>`;
+    const g = $("#sc-grid");
+    offSwap = swapDrag(g, (i, j) => { [scDraft[i], scDraft[j]] = [scDraft[j], scDraft[i]]; showEdit(); });
+    body.onclick = async e => {
+      if (g.dataset.dragged) return;
+      const x = e.target.closest("[data-x]"); if (x) { scDraft.splice(+x.dataset.x, 1); showEdit(); return; }
+      if (e.target.closest("#sc-add")) {
+        const b = $("#sc-add"); b.disabled = true; b.querySelector("span").textContent = "Chargement…";
+        const items = await collectionItems();
+        if (!scDraft) return;
+        openBinderEditor(null, items, null, "pick", {
+          title: "Ma vitrine", max: SC_MAX, cards: scDraft.map(c => ({ ...c, setId: c.setId || c.id.slice(0, c.id.lastIndexOf("-")) })),
+          save: chosen => { scDraft = chosen.map(x => (x.c ? toShow(x.c, x.info) : x.old)); showEdit(); },
+          back: () => showEdit()
+        });
+        return;
+      }
+      if (e.target.closest("#sc-cancel")) { scDraft = null; tabs.show(); return; }
+      if (e.target.closest("#sc-done")) {
+        const b = $("#sc-done"); b.disabled = true;
+        try { const next = scDraft; await saveMyProfile({ showcase: next }); show = next; scDraft = null; toast("Vitrine enregistrée"); if (body.isConnected) tabs.show(); }
+        catch (er) { toast(profileError(er)); b.disabled = false; }
+      }
+    };
+  };
+  if (me) {
+    const onEdit = () => { if (!body.isConnected) return removeEventListener("showcase:edit", onEdit); select("show"); editShowcase(); toTabs(); };
+    addEventListener("showcase:edit", onEdit);
+  }
   const people = async dir => {
     body.onclick = null; body.innerHTML = wait();
     try { const l = await listFollows(card.id, dir); body.innerHTML = l.length ? `<div class="ig-people">${l.map(personRow).join("")}</div>` : empty(IG.addp, dir === "followers" ? "Aucun abonné pour l'instant" : "Aucun abonnement pour l'instant", ""); }
@@ -197,6 +239,10 @@ async function highlights(card, me, open) {
   el.onclick = e => { const b = e.target.closest("[data-h]"); if (b) open(sets[+b.dataset.h]); };
   paintHl();
 }
+/* the showcase being edited (kept while the page redraws) */
+const SC_MAX = 12;
+let scDraft = null;
+const toShow = (c, info) => ({ id: c.id, name: c.name, img: c.img || "", set: info?.name || "", n: c.n || "", r: c.r || "", p: priceOf(c, mainVariant(c)) || 0 });
 /* the extension picked in the circles (null = everything): the collection tab shows only its cards */
 let selSet = null, selFor = null;
 function paintHl() {

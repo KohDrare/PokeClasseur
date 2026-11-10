@@ -40,6 +40,34 @@ function recordValue(v, q) {
   return h;
 }
 
+/* every card I own, with what we sort on (also used by the showcase editor of the profile) */
+export async function collectionItems(ids = Object.keys(ownedBySet())) {
+  const sets = [];
+  for (const id of ids) { let s = await peekSet(id); if (!s) { try { s = await loadSet(id); } catch { continue; } } sets.push(s); }
+
+  // every owned card, with what we sort on
+  const items = [];
+  const seen = new Map();
+  for (const s of sets) fixOrphans(s.cards);
+  for (const s of sets) for (const c of s.cards) {
+    if (!ownedAny(c.id)) continue;
+    // a product promo is listed in its extension AND in the promo set: show it once
+    if (seen.has(c.id)) { const j = seen.get(c.id); if (items[j].c.linked && !c.linked) items[j] = null; else continue; }
+    seen.set(c.id, items.length);
+    const e = S.COL.cards[c.id], vs = Object.entries(e.v).filter(([, n]) => n > 0);
+    items.push({
+      c: Object.assign(c, { _info: s.info }), info: s.info,
+      q: vs.reduce((a, [, n]) => a + n, 0),
+      val: vs.reduce((a, [v, n]) => a + priceOf(c, v) * n, 0) * condFactor(c.id),   // your copy, in its condition
+      valMine: vs.filter(([v]) => isMine(c.id, v)).reduce((a, [v, n]) => a + priceOf(c, v) * n, 0) * condFactor(c.id),   // shared extensions: only what is (also) mine
+      unit: Math.max(0, ...vs.map(([v]) => priceOf(c, v))) * condFactor(c.id),
+      no: parseInt((c.src || c.n || "").replace(/\D+/g, "")) || 0,
+      date: s.info.date || ""
+    });
+  }
+  for (let j = items.length - 1; j >= 0; j--) if (!items[j]) items.splice(j, 1);
+  return items;
+}
 export async function renderCollection() {
   setNav("col"); S.CUR = null;
   const app = $("#app");
@@ -63,31 +91,8 @@ export async function renderCollection() {
     return;
   }
   $("#colbody").innerHTML = `<div class="empty-state"><b>Préparation de ta vitrine…</b></div>`;
-  const sets = [];
-  for (const id of ids) { let s = await peekSet(id); if (!s) { try { s = await loadSet(id); } catch { continue; } } sets.push(s); }
+  const items = await collectionItems(ids);
   if (!location.hash.startsWith("#/collection")) return;
-
-  // every owned card, with what we sort on
-  const items = [];
-  const seen = new Map();
-  for (const s of sets) fixOrphans(s.cards);
-  for (const s of sets) for (const c of s.cards) {
-    if (!ownedAny(c.id)) continue;
-    // a product promo is listed in its extension AND in the promo set: show it once
-    if (seen.has(c.id)) { const j = seen.get(c.id); if (items[j].c.linked && !c.linked) items[j] = null; else continue; }
-    seen.set(c.id, items.length);
-    const e = S.COL.cards[c.id], vs = Object.entries(e.v).filter(([, n]) => n > 0);
-    items.push({
-      c: Object.assign(c, { _info: s.info }), info: s.info,
-      q: vs.reduce((a, [, n]) => a + n, 0),
-      val: vs.reduce((a, [v, n]) => a + priceOf(c, v) * n, 0) * condFactor(c.id),   // your copy, in its condition
-      valMine: vs.filter(([v]) => isMine(c.id, v)).reduce((a, [v, n]) => a + priceOf(c, v) * n, 0) * condFactor(c.id),   // shared extensions: only what is (also) mine
-      unit: Math.max(0, ...vs.map(([v]) => priceOf(c, v))) * condFactor(c.id),
-      no: parseInt((c.src || c.n || "").replace(/\D+/g, "")) || 0,
-      date: s.info.date || ""
-    });
-  }
-  for (let j = items.length - 1; j >= 0; j--) if (!items[j]) items.splice(j, 1);
   drawHero(items);
   const shelf = $("#colshelf"); shelf.hidden = false;
   const refreshShelf = () => drawBinderShelf(shelf, items, refreshShelf);

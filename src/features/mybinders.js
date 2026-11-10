@@ -82,9 +82,13 @@ export function openMyBinder(i, items, refresh, startEdit = false) {
 
 /* create (everything), or from a binder being edited: "pick" = only the cards, "settings" = name, colour, pages or scroll.
    Cards: tap to add, the first one is the cover; the order is changed in the binder itself (hold and drop). */
-export function openBinderEditor(i, items, refresh, part = null) {
+/* ext (another list of cards, e.g. the profile's showcase): { title, cards, max, save(chosen), back() } —
+   only the picking part, chosen = [{ c, info }] or [{ old }] for a card no longer in the collection */
+export function openBinderEditor(i, items, refresh, part = null, ext = null) {
+  if (ext) part = "pick";
   const all = myBinders();
-  const cur = i == null ? { name: "", color: BINDER_COLORS[0], mode: "pages", cards: [] } : structuredClone(all[i]);
+  const cur = ext ? { name: ext.title, color: BINDER_COLORS[0], mode: "pages", cards: ext.cards } : i == null ? { name: "", color: BINDER_COLORS[0], mode: "pages", cards: [] } : structuredClone(all[i]);
+  const max = ext?.max || Infinity;
   let picked = cur.cards.map(c => c.id), q = "";
   let sk = "rar", sd = -1;               // sort: rarest first
   const rarOn = new Set();               // rarity filter
@@ -97,12 +101,12 @@ export function openBinderEditor(i, items, refresh, part = null) {
   const offs = [];   // listeners to remove when the editor closes
   const shut = () => { root.innerHTML = ""; document.body.style.overflow = ""; removeEventListener("keydown", key); offs.forEach(f => f()); };
   // opened from the binder being edited: back to it
-  const close = () => { shut(); if (i != null) openMyBinder(i, items, refresh, true); };
+  const close = () => { shut(); if (ext) ext.back?.(); else if (i != null) openMyBinder(i, items, refresh, true); };
   const key = e => { if (e.key === "Escape") close(); };
   addEventListener("keydown", key); document.body.style.overflow = "hidden";
   root.innerHTML = `<div class="modal" id="mdl"><div class="sheet beditor ${part ? "only-" + part : ""}" role="dialog" aria-modal="true" aria-label="Classeur">
     <button class="iconbtn close" id="m-close" aria-label="Fermer">${ICON.x}</button>
-    <h2>${i == null ? "Nouveau classeur" : part === "pick" ? "Choisir les cartes" : "Réglages du classeur"}</h2>
+    <h2>${ext ? esc(ext.title) : i == null ? "Nouveau classeur" : part === "pick" ? "Choisir les cartes" : "Réglages du classeur"}</h2>
     <div id="be-set" ${part === "pick" ? "hidden" : ""}>
     <label class="be-lbl" for="be-name">Nom</label>
     <input class="be-name" id="be-name" maxlength="40" placeholder="Par ex. AllOfHit, Mes Évoli, Full Art…" value="${esc(cur.name)}">
@@ -111,7 +115,7 @@ export function openBinderEditor(i, items, refresh, part = null) {
       <div><div class="be-lbl">Affichage</div><div class="seg" id="be-mode"><button data-m="pages" class="${cur.mode === "pages" ? "on" : ""}">Pages</button><button data-m="scroll" class="${cur.mode === "scroll" ? "on" : ""}">Défilement</button></div></div>
     </div>
     </div>
-    ${i == null ? `<div class="be-lbl be-cards">Cartes <em id="be-n"></em></div>` : ""}
+    ${i == null ? `<div class="be-lbl be-cards">${ext ? "Dans l'ordre de la vitrine" : "Cartes"} <em id="be-n"></em></div>` : ""}
     <div id="be-pick" ${part === "settings" ? "hidden" : ""}>
     <label class="search" for="be-q">${ICON.search}<input id="be-q" placeholder="Rechercher dans ma collection" autocomplete="off"></label>
     <div class="be-tools"><span class="be-t">Trier</span><div class="be-chips" id="be-sort"></div></div>
@@ -129,9 +133,9 @@ export function openBinderEditor(i, items, refresh, part = null) {
     const gone = picked.filter(id => !byId.has(id)).map(id => ({ c: cur.cards.find(c => c.id === id), info: {}, q: 1, val: 0, unit: 0, no: 0, date: "" })).filter(x => x.c);
     shown = sortItems([...items, ...gone], sk, sd).filter(x => (!qq || x.c.name.toLowerCase().includes(qq) || (x.info?.name || "").toLowerCase().includes(qq)) && (!rarOn.size || rarOn.has(rkey(x.c))));
     grid.innerHTML = shown.map(x => { const k = picked.indexOf(x.c.id);
-      return `<button class="be-card ${k >= 0 ? "on" : ""}" data-id="${esc(x.c.id)}" aria-pressed="${k >= 0}">${imgTag(x.c, "low")}${k >= 0 ? `<span class="be-k">${k === 0 ? "★" : k + 1}</span>` : ""}</button>`; }).join("") || `<p class="note">Aucune carte.</p>`;
-    const cnt = $("#be-n"); if (cnt) cnt.textContent = part === "pick" ? `(${picked.length})` : picked.length;
-    const add = shown.filter(x => !picked.includes(x.c.id)).length;
+      return `<button class="be-card ${k >= 0 ? "on" : ""}" data-id="${esc(x.c.id)}" aria-pressed="${k >= 0}">${imgTag(x.c, "low")}${k >= 0 ? `<span class="be-k">${k === 0 && !ext ? "★" : k + 1}</span>` : ""}</button>`; }).join("") || `<p class="note">Aucune carte.</p>`;
+    const cnt = $("#be-n"); if (cnt) cnt.textContent = part === "pick" ? `(${picked.length}${max < Infinity ? "/" + max : ""})` : picked.length;
+    const add = Math.min(shown.filter(x => !picked.includes(x.c.id)).length, max - picked.length);
     const all = $("#be-all"); all.textContent = `Tout ajouter (${add})`; all.disabled = !add;
     $("#be-none").disabled = !picked.length;
     $("#be-sort").innerHTML = SORTS.map(o => `<button class="be-chip ${o.k === sk ? "on" : ""}" data-k="${o.k}">${SHORT[o.k]}${o.k === sk ? `<i class="sdir ${sd > 0 ? "" : "down"}">${ARROW}</i>` : ""}</button>`).join("");
@@ -139,19 +143,22 @@ export function openBinderEditor(i, items, refresh, part = null) {
   grid.onclick = e => {
     const b = e.target.closest("[data-id]"); if (!b) return;
     const id = b.dataset.id, k = picked.indexOf(id);
-    if (k >= 0) picked.splice(k, 1); else picked.push(id);
+    if (k >= 0) picked.splice(k, 1);
+    else if (picked.length >= max) { toast(`${max} cartes maximum : retires-en une d'abord`); return; }
+    else picked.push(id);
     drawGrid();
   };
   $("#be-q").oninput = e => { q = e.target.value; drawGrid(); };
   $("#be-sort").onclick = e => { const b = e.target.closest("[data-k]"); if (!b) return; const o = SORTS.find(x => x.k === b.dataset.k); if (sk === o.k) sd = -sd; else { sk = o.k; sd = o.d; } drawGrid(); };
   const rb = $("#be-rar"); if (rb) rb.onclick = e => { const b = e.target.closest("[data-r]"); if (!b) return; const k = b.dataset.r; rarOn.has(k) ? rarOn.delete(k) : rarOn.add(k); b.classList.toggle("on", rarOn.has(k)); drawGrid(); };
-  $("#be-all").onclick = () => { for (const x of shown) if (!picked.includes(x.c.id)) picked.push(x.c.id); drawGrid(); };
+  $("#be-all").onclick = () => { for (const x of shown) if (!picked.includes(x.c.id) && picked.length < max) picked.push(x.c.id); drawGrid(); };
   $("#be-none").onclick = () => { picked = []; drawGrid(); };
   $("#be-colors").onclick = e => { const b = e.target.closest("[data-c]"); if (!b) return; cur.color = b.dataset.c; [...e.currentTarget.children].forEach(x => x.classList.toggle("on", x === b)); };
   $("#be-mode").onclick = e => { const b = e.target.closest("[data-m]"); if (!b) return; cur.mode = b.dataset.m; [...e.currentTarget.children].forEach(x => x.classList.toggle("on", x === b)); };
   $("#m-close").onclick = close;
   $("#mdl").onclick = e => { if (e.target.id === "mdl") close(); };
   $("#be-save").onclick = () => {
+    if (ext) { shut(); ext.save(picked.map(id => byId.has(id) ? { c: byId.get(id).c, info: byId.get(id).info } : { old: cur.cards.find(c => c.id === id) }).filter(x => x.c || x.old)); return; }
     cur.name = $("#be-name").value.trim() || "Mon classeur";
     if (!picked.length) { toast("Choisis au moins une carte"); return; }
     cur.cards = picked.map(id => byId.has(id) ? snap(byId.get(id).c, byId.get(id).info) : cur.cards.find(c => c.id === id)).filter(Boolean);
