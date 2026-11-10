@@ -12,7 +12,7 @@ export const RAR = [
   [/^double rare$/, "star2", 5],
   [/^ace spec/, "sparkle-pink", 5.5],
   [/^illustration rare$/, "star-gold", 6],
-  [/^pikachu rare$/, "star-pink", 6.5],                    // 30ᵉ Anniversaire: the 30 Pikachu
+  [/^pikachu rare$/, "star-pink", 4.4],                    // 30ᵉ Anniversaire: the 30 Pikachu (one per booster: just under the ex)
   [/^futuristic rare$/, "star3-teal", 9.2],               // 30ᵉ Anniversaire: Mewtwo-ex / Mew-ex futuristes
   [/^collection classique$/, "star3-silver", 9.5],        // 30ᵉ Anniversaire: old cards reprinted (C01–C30)
   [/^(ultra rare|rare ultra)$/, "star2-silver", 7],
