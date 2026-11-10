@@ -25,6 +25,13 @@ const account = () => acctMod ||= import("../cloud/account.js");
 /* signed in with a pseudo: the tab opens on my public page (vitrine, collection, followers…) with my settings
    below; otherwise the settings page alone */
 let mode = "plain", sig = "";
+const profileLoading = () => cloud.enabled && (!cloud.ready || (!!cloud.user && cloud.profile === null));
+const profileLoaded = () => new Promise(res => {
+  const done = () => { removeEventListener("cloud:changed", h); clearTimeout(t); res(); };
+  const h = () => { if (!profileLoading()) done(); };
+  const t = setTimeout(done, 8000);   // no answer (offline…): draw what we have
+  addEventListener("cloud:changed", h);
+});
 const profSig = () => JSON.stringify(cloud.profile || null);
 export async function renderProfile() {
   setNav("profil");
@@ -42,6 +49,12 @@ export async function renderProfile() {
       </div>
     </div>
     <p class="note pf-ver">PokéClasseur · version du ${new Date(__BUILD__).toLocaleString("fr-BE", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}</p>`;
+  // page reloaded: wait until the account and its profile are known, so the page is drawn once, the right one
+  if (profileLoading()) {
+    $("#app").innerHTML = `<section class="profile-page"><div class="ig-wait"><span class="ig-wait-av"></span><span class="ig-wait-l"></span><span class="ig-wait-l s"></span></div></section>`;
+    await profileLoaded();
+    if (!location.hash.startsWith("#/profil")) return;
+  }
   sig = profSig();
   const handle = cloud.user && cloud.profile?.handle;
   const own = handle ? await renderTrainer(handle, { own: true, after: grid }) : false;

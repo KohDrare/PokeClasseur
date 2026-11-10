@@ -26,6 +26,8 @@ export function openCard(card, seq, startV, opts = {}) {
   let pv = startV || null; /* version shown on the big card */
   const baseInfo = S.CUR?.data?.info || card._info || {};
   let untilt = () => {};
+  // the condition changed (price page): the prices of the versions follow at once
+  const repaintVers = c => { const vb = $("#vers"); if (vb) vb.innerHTML = shownVariants(c).map(v => verRow(c, v, v === pv)).join(""); };
   const draw = () => {
     untilt(); untilt = () => {};
     fixOrphans([seq[idx]]);
@@ -67,7 +69,7 @@ export function openCard(card, seq, startV, opts = {}) {
     $("#mdl").onclick = e => { if (e.target.id === "mdl") close(); };
     const cref = () => ({ id: c.id, name: c.name, img: c.img, set: info.name || "", n: c.n, r: c.r, p: priceOf(c, pv) || c.p || 0, dx: c.dx || [] });
     $("#m-wish").onclick = () => { unToggleWish(cref()); $("#m-wish").textContent = UN.wish.some(w => w.id === c.id) ? "Dans ma liste" : "Je la cherche"; };
-    $("#m-price").onclick = () => openPricePage(c, info, pv, () => { changed = true; const pl = $("#m-plbl"), pvv = $("#m-pval"); if (pl) pl.textContent = priceLbl(c, pv); if (pvv) pvv.textContent = priceTxt(c, pv); });
+    $("#m-price").onclick = () => openPricePage(c, info, pv, () => { changed = true; const pl = $("#m-plbl"), pvv = $("#m-pval"); if (pl) pl.textContent = priceLbl(c, pv); if (pvv) pvv.textContent = priceTxt(c, pv); repaintVers(c); });
     $("#m-prev").onclick = () => { if (idx > 0) { idx--; draw(); } };
     $("#m-next").onclick = () => { if (idx < seq.length - 1) { idx++; draw(); } };
     const dxb = $("#m-dex"); if (dxb) dxb.onclick = () => goDex(c.dx[0]);
@@ -183,7 +185,7 @@ export function openCard(card, seq, startV, opts = {}) {
     const dxb = $("#m-dex"); if (dxb) dxb.onclick = () => goDex(c.dx[0]);
     const ilb = $("#m-il"); if (ilb) ilb.onclick = () => goArtist(c.il);
     const fv = $("#m-fav"); if (fv) fv.onclick = () => { setFav(c.id, !isFav(c.id)); changed = true; const y = sc.scrollTop; draw(); $("#cp-scroll").scrollTop = y; };
-    $("#m-price").onclick = () => openPricePage(c, nInfo, pv, () => { changed = true; const b = $("#m-price"); if (b && priceOf(c, pv)) b.lastChild.textContent = ` Prix · ${eur(priceOf(c, pv) * condFactor(c.id))}`; });
+    $("#m-price").onclick = () => openPricePage(c, nInfo, pv, () => { changed = true; const b = $("#m-price"); if (b && priceOf(c, pv)) b.lastChild.textContent = ` Prix · ${eur(priceOf(c, pv) * condFactor(c.id))}`; repaintVers(c); });
     const showFoil = () => {
       card.querySelector(".fx")?.remove(); card.querySelector(".ftag")?.remove();
       card.querySelector(".vw-glare").insertAdjacentHTML("beforebegin", fxHTML(foilOf(c, pv)) + badgeHTML(c, pv));
@@ -233,7 +235,7 @@ export function openCard(card, seq, startV, opts = {}) {
 const priceTxt = (c, v) => { const p = priceOf(c, v); return p ? eur(p * (ownedAny(c.id) ? condFactor(c.id) : 1)) : "–"; };
 const priceLbl = (c, v) => `${variantLabel(c, v)}${ownedAny(c.id) && condOf(c.id) !== "NM" ? " · état " + condOf(c.id) : ""} · tendance du jour`;
 export function verRow(c, v, on) {
-  const q = qtyOf(c.id, v), p = priceOf(c, v);
-  return `<div class="ver ${q ? "have" : ""} ${on ? "on" : ""}" data-v="${v}"><div><div class="vn">${esc(variantLabel(c, v))}</div><div class="vp">${p ? eur(p) + " pièce" : "prix inconnu"}</div></div>
+  const q = qtyOf(c.id, v), cond = ownedAny(c.id) ? condOf(c.id) : "NM", p = priceOf(c, v) * (cond !== "NM" ? condFactor(c.id) : 1);
+  return `<div class="ver ${q ? "have" : ""} ${on ? "on" : ""}" data-v="${v}"><div><div class="vn">${esc(variantLabel(c, v))}</div><div class="vp">${p ? eur(p) + " pièce" + (cond !== "NM" ? ` · état ${cond}` : "") : "prix inconnu"}</div></div>
     <div class="step"><button data-v="${v}" data-d="-1" aria-label="Retirer un exemplaire">−</button><b>${q}</b><button data-v="${v}" data-d="1" aria-label="Ajouter un exemplaire">+</button></div></div>`;
 }
