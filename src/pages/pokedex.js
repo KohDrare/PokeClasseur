@@ -165,12 +165,13 @@ async function openCardsSheet(spec, over, scrollTo) {
   if (!q("#moncards")) return;
   if (!S.SERIES) { try { S.SERIES = await loadSeries(); } catch {} }
   if (!q("#moncards")) return;
+  // no TCGdex picture yet (new extensions): the Pokécardex scan; TCG Pocket-like sets without either are left out
   const pic = c => c.image ? `${c.image}/low.webp` : img(scanBase(c.id.slice(0, c.id.lastIndexOf("-")), c.localId));
   if (spec.byDate) {
     // newest extension first (the series list starts with the newest), then card number
     const rank = new Map((S.SERIES || []).flatMap(x => x.sets).map((t, i) => [t.id, i]));
     const r = c => rank.get(c.id.slice(0, c.id.lastIndexOf("-"))) ?? 1e9;
-    all = all.filter(c => c.image).sort((x, y) => r(x) - r(y) || (parseInt(x.localId) || 0) - (parseInt(y.localId) || 0));
+    all = all.filter(pic).sort((x, y) => r(x) - r(y) || (parseInt(x.localId) || 0) - (parseInt(y.localId) || 0));
   }
   const mine = all.filter(c => ownedAny(c.id)), others = all.filter(c => !ownedAny(c.id) && pic(c));
   q("#monstatus").innerHTML = spec.status(mine.length, all.length);
