@@ -4,7 +4,7 @@
    - card images, logos, sprites, fonts: cache first, kept up to a size limit
    - TCGdex API: network first, cached copy when offline
    - Supabase (accounts, sync): never cached */
-const V = "v1";
+const V = "v2";
 const SHELL = `pc-shell-${V}`, IMG = `pc-img-${V}`, API = `pc-api-${V}`, FONT = `pc-font-${V}`;
 const KEEP = [SHELL, IMG, API, FONT];
 const LIMITS = { [SHELL]: 80, [IMG]: 4000, [API]: 400, [FONT]: 30 };

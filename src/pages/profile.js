@@ -1,6 +1,7 @@
 /* "Profil" tab (in place of the Union Room for now): who I am, my account and its sync,
    my collection in figures, saving / exporting the collection, and the app settings. */
 /* global __BUILD__ */
+import { APP_ICONS, iconChoice, iconSrc, setAppIcon } from "../features/appicon.js";
 import { $, esc } from "../lib/core.js";
 import { setNav, toast } from "../lib/ui.js";
 import { cloud } from "../cloud/session.js";
@@ -254,9 +255,18 @@ function drawSettings() {
     <div class="pf-rows">
       ${sw("pf-dark", PREF.theme === "dark", "Mode sombre", "Fond foncé, plus doux le soir")}
       ${"DeviceOrientationEvent" in window && matchMedia("(pointer:coarse)").matches ? `<button class="pf-row" id="pf-motion"><b>Effet 3D avec le mouvement</b><small>Autoriser l'inclinaison du téléphone pour faire bouger les cartes</small></button>` : ""}
+      <div class="pf-row pf-icons"><b>Icône de l'app</b><small>Le logo en haut, dans l'onglet et sur l'écran d'accueil</small>
+        <div class="pf-icg">${APP_ICONS.map(o => `<button class="pf-ic ${iconChoice() === o.k ? "on" : ""}" data-ic="${o.k}" aria-pressed="${iconChoice() === o.k}">${o.k === "auto" ? `<span class="pf-ic-auto"><img src="${iconSrc("clair")}" alt=""><img src="${iconSrc("nuit")}" alt=""></span>` : `<img src="${iconSrc(o.k)}" alt="">`}<small>${o.l}</small></button>`).join("")}</div>
+        <small class="pf-ic-note">Déjà sur ton écran d'accueil ? Retire l'appli et ajoute-la à nouveau pour voir la nouvelle icône.</small>
+      </div>
       ${mAble ? `<button class="pf-row" id="pf-ui"><b>${m ? "Version ordinateur" : "Version téléphone"}</b><small>${m ? "Afficher le site comme sur un ordinateur" : "Revenir à l'affichage pour téléphone"}</small></button>` : ""}
     </div>`;
   $("#pf-dark").onclick = e => { PREF.theme = PREF.theme === "dark" ? "light" : "dark"; savePref(); applyTheme(); flip(e.currentTarget, PREF.theme === "dark"); };
+  el.querySelectorAll("[data-ic]").forEach(b => b.onclick = () => {
+    setAppIcon(b.dataset.ic);
+    el.querySelectorAll("[data-ic]").forEach(x => { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", x === b); });
+    toast("Icône de l'app changée");
+  });
   const mo = $("#pf-motion"); if (mo) mo.onclick = () => { askMotion(); toast("Incline ton téléphone sur une carte en grand"); };
   const ui = $("#pf-ui"); if (ui) ui.onclick = () => { try { localStorage.setItem("pc-ui", m ? "d" : "m"); } catch { /* private mode */ } location.reload(); };
 }

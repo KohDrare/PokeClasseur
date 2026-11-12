@@ -1,6 +1,7 @@
 /* PokéClasseur — entry point.
    Styles first (order matters), then modules with side effects, then the router. */
 import "./styles/base.css";
+import "./features/appicon.js";
 import "./styles/cards.css";
 import "./styles/binder.css";
 import "./styles/pages.css";

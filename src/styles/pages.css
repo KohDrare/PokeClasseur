@@ -667,3 +667,15 @@ html.m .ig-tabs button span{display:none}
 .sw-target{outline:3px solid var(--navy);outline-offset:2px;transform:scale(.94);transition:transform .12s}
 .sw-ghost{position:fixed!important;z-index:300;pointer-events:none;transform:scale(1.08) rotate(-2deg);box-shadow:0 18px 40px rgba(0,0,0,.4);border-radius:5px;overflow:hidden}
 .sw-ghost .sc-x{display:none}
+/* settings: app icon */
+.pf-icons{cursor:default}
+.pf-icg{display:flex;gap:12px;margin:12px 0 6px;flex-wrap:wrap}
+.pf-ic{border:0;background:none;padding:0;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;color:inherit;font-family:inherit}
+.pf-ic img,.pf-ic-auto{width:72px;height:72px;border-radius:17px;object-fit:cover;display:block;box-shadow:0 0 0 1px var(--line),0 3px 10px rgba(0,0,0,.15)}
+.pf-ic-auto{position:relative;overflow:hidden}
+.pf-ic-auto img{position:absolute;inset:0;box-shadow:none;border-radius:0}
+.pf-ic-auto img+img{clip-path:polygon(100% 0,100% 100%,0 100%)}
+.pf-ic.on img,.pf-ic.on .pf-ic-auto{box-shadow:0 0 0 3px var(--bg,#fff),0 0 0 5.5px var(--navy)}
+.pf-ic small{font-weight:700;font-size:12.5px}
+.pf-ic.on small{color:var(--navy)}
+.pf-ic-note{opacity:.8}
